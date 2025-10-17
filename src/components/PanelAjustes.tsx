@@ -1,0 +1,117 @@
+import { useState } from 'react';
+import { EndpointInput } from './Endpointinput.tsx';
+import { Button } from './Button';
+import { StatusCode } from './StatusCode.tsx';
+import  Latency  from './Latency.tsx'
+
+
+
+export function PanelAjustes() {
+  const [endpointPath, setEndpointPath] = useState('/api/v1/ruta/del/recurso');
+  const [method, setMethod] = useState<string>('GET');
+  const [baseResponse, setBaseResponse] = useState(200);
+  const [latencyMs, setLatencyMs] = useState<number>(0);
+
+
+
+const [pathError, setPathError] = useState<string | null>(null);
+const handlePathChange = (newPath: string) => {
+  setEndpointPath(newPath); 
+
+
+  //Para validar que tenga el lenguaje correcto (Lenguaje regular)
+  if (!newPath.startsWith('/')) {
+    setPathError('La ruta debe comenzar con "/".');
+  } else if (newPath.includes(' ')) {
+    setPathError('La ruta no puede contener espacios.');
+  } else if (newPath.includes('//')) {
+    setPathError('La ruta no puede tener barras consecutivas.');
+  } else if (!/^[a-zA-Z0-9\/:_-]*$/.test(newPath)) {
+    setPathError('La ruta contiene caracteres inválidos.');
+  } else {
+    setPathError(null);
+  }
+};
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Para probar que se guarden correctammente (usando un archivo .txt)
+const handleSubmit = () => {
+    if (pathError) {
+        alert("No se puede guardar: La ruta del endpoint tiene un error.");
+        return; 
+      }
+
+
+    const ruleToSave = {
+      method: method,
+      path: endpointPath,
+      baseResponse: baseResponse,
+      latencyMs: latencyMs,
+      latencyPercent: Math.round((latencyMs / 5000) * 100),
+      //Falta agregar los otros datos caos injection (% fallo, Caos code)
+    };
+
+    //se convierte en JSON
+    const fileContent = JSON.stringify(ruleToSave, null, 2);
+
+
+    const blob = new Blob([fileContent], { type: 'text/plain' });
+
+
+
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob); 
+
+    link.download = 'escenario.txt';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+  return (
+    <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Ajustar escenarios</h1>
+      <div>
+        <div className="space-y-6">
+          <EndpointInput
+            method={method}
+            path={endpointPath}
+            onMethodChange={setMethod}
+            //onPathChange={setEndpointPath} 
+            onPathChange={handlePathChange}
+          />
+          {pathError && (
+            <p className="text-xs text-red-600 -mt-4 ml-2">{pathError}</p>
+            )}
+        
+        <StatusCode
+            label="Respuesta base"
+            value={baseResponse}
+            onChange={setBaseResponse}
+          />
+        
+        </div>
+
+        <Latency value={latencyMs} onChange={setLatencyMs} />
+
+
+        <div className="pt-10 flex justify-center"> 
+            <Button
+              variant="ghost"
+              className="w-auto px-6 py-2 border border-blue-600 text-blue-600 bg-transparent hover:bg-blue-600 hover:text-white"
+              onClick={handleSubmit}>
+                APLICAR
+            </Button>
+        </div>
+
+
+      </div>
+    </div>
+  );
+}
