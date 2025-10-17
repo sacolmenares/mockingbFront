@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useImperativeHandle, forwardRef } from 'react';
 import { EndpointInput } from './Endpointinput.tsx';
-import { Button } from './Button.tsx';
 import { StatusCode } from './StatusCode.tsx';
 import  Latency  from './Latency.tsx'
 import { InyeccionDelCaos } from './CaosInyection.tsx';
@@ -8,7 +7,11 @@ import { InyeccionDelCaos } from './CaosInyection.tsx';
 
 
 
-export function PanelAjustesIndv() {
+export interface PanelAjustesIndvRef {
+  getEscenarioData: () => any;
+}
+
+export const PanelAjustesIndv = forwardRef<PanelAjustesIndvRef>((_, ref) => {
   const [endpointPath, setEndpointPath] = useState('/api/v1/ruta/del/recurso');
   const [method, setMethod] = useState<string>('GET');
   const [baseResponse, setBaseResponse] = useState(200);
@@ -19,7 +22,26 @@ export function PanelAjustesIndv() {
 
 
 
-const [pathError, setPathError] = useState<string | null>(null);
+  const [pathError, setPathError] = useState<string | null>(null);
+
+  // Exponer función para obtener datos del escenario
+  useImperativeHandle(ref, () => ({
+    getEscenarioData: () => {
+      if (pathError) {
+        return null; // Indica que hay error
+      }
+      return {
+        method: method,
+        path: endpointPath,
+        baseResponse: baseResponse,
+        latencyMs: latencyMs,
+        latencyPercent: Math.round((latencyMs / 5000) * 100),
+        chaosEnabled: inyeccionCaos,
+        chaosFailurePercent: inyeccionCaos ? porcentajeFallo : 0,
+        chaosCode: inyeccionCaos ? (codigoCaos || 500) : 0
+      };
+    }
+  }));
 const handlePathChange = (newPath: string) => {
   setEndpointPath(newPath); 
 
@@ -39,52 +61,12 @@ const handlePathChange = (newPath: string) => {
 };
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Para probar que se guarden correctammente (usando un archivo .txt)
-const handleSubmit = () => {
-    if (pathError) {
-        alert("No se puede guardar: La ruta del endpoint tiene un error.");
-        return; 
-      }
-
-
-      const ruleToSave = {
-        method: method,
-        path: endpointPath,
-        baseResponse: baseResponse,
-        latencyMs: latencyMs,
-        latencyPercent: Math.round((latencyMs / 5000) * 100),
-        chaosEnabled: inyeccionCaos,
-        chaosFailurePercent: inyeccionCaos ? porcentajeFallo : 0, //si chaosEnable = false, por defecto envia 0
-        chaosCode: inyeccionCaos ? (codigoCaos || 500) : 0
-      };
-      
-      
-    //se convierte en JSON
-    const fileContent = JSON.stringify(ruleToSave, null, 2);
-
-
-    const blob = new Blob([fileContent], { type: 'text/plain' });
-
-
-
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob); 
-
-    link.download = 'escenario.txt';
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
 
   return (
     <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Ajustar escenarios</h1>
 
 
       <div>
@@ -121,18 +103,19 @@ const handleSubmit = () => {
 
 
 
+      </div>
+    </div>
+  );
+});
 
-        <div className="pt-10 flex justify-center"> 
+//Boton de aplicar, se pondra uno global que se encargue de enviar toda las peticiones
+/**
+         <div className="pt-10 flex justify-center"> 
             <Button
               variant="ghost"
               className="w-auto px-6 py-2 border border-blue-600 text-blue-600 bg-transparent hover:bg-blue-600 hover:text-white"
               onClick={handleSubmit}>
                 APLICAR
             </Button>
-        </div>
-
-
-      </div>
-    </div>
-  );
-}
+          </div>
+ */
