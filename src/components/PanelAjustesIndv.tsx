@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { EndpointInput } from './Endpointinput.tsx';
-import { Button } from './Button';
+import { Button } from './Button.tsx';
 import { StatusCode } from './StatusCode.tsx';
 import  Latency  from './Latency.tsx'
+import { InyeccionDelCaos } from './CaosInyection.tsx';
 
 
 
-export function PanelAjustes() {
+
+export function PanelAjustesIndv() {
   const [endpointPath, setEndpointPath] = useState('/api/v1/ruta/del/recurso');
   const [method, setMethod] = useState<string>('GET');
   const [baseResponse, setBaseResponse] = useState(200);
   const [latencyMs, setLatencyMs] = useState<number>(0);
+  const [inyeccionCaos, setInyeccionCaos] = useState(false);
+  const [porcentajeFallo, setPorcentajeFallo] = useState<number>(0);
+  const [codigoCaos, setCodigoCaos] = useState<number | null>(null);
 
 
 
@@ -43,15 +48,18 @@ const handleSubmit = () => {
       }
 
 
-    const ruleToSave = {
-      method: method,
-      path: endpointPath,
-      baseResponse: baseResponse,
-      latencyMs: latencyMs,
-      latencyPercent: Math.round((latencyMs / 5000) * 100),
-      //Falta agregar los otros datos caos injection (% fallo, Caos code)
-    };
-
+      const ruleToSave = {
+        method: method,
+        path: endpointPath,
+        baseResponse: baseResponse,
+        latencyMs: latencyMs,
+        latencyPercent: Math.round((latencyMs / 5000) * 100),
+        chaosEnabled: inyeccionCaos,
+        chaosFailurePercent: inyeccionCaos ? porcentajeFallo : 0, //si chaosEnable = false, por defecto envia 0
+        chaosCode: inyeccionCaos ? (codigoCaos || 500) : 0
+      };
+      
+      
     //se convierte en JSON
     const fileContent = JSON.stringify(ruleToSave, null, 2);
 
@@ -77,6 +85,8 @@ const handleSubmit = () => {
   return (
     <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Ajustar escenarios</h1>
+
+
       <div>
         <div className="space-y-6">
           <EndpointInput
@@ -99,6 +109,17 @@ const handleSubmit = () => {
         </div>
 
         <Latency value={latencyMs} onChange={setLatencyMs} />
+
+        <InyeccionDelCaos
+            inyeccionCaos={inyeccionCaos}
+            setInyeccionCaos={setInyeccionCaos}
+            porcentajeFallo={porcentajeFallo}
+            setPorcentajeFallo={setPorcentajeFallo}
+            codigoCaos={codigoCaos}
+            setCodigoCaos={setCodigoCaos}
+/>
+
+
 
 
         <div className="pt-10 flex justify-center"> 

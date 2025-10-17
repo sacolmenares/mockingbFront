@@ -1,7 +1,7 @@
 import { useState} from 'react';
 import SideBar from './layouts/SideBar.tsx'; 
 import { PageHeader } from './layouts/PageHeader.tsx';
-import { PanelAjustes } from './components/PanelAjustes.tsx';
+import { PanelAjustes } from './components/PanelAjustesIndv.tsx';
 import { PanelReportes } from './components/PanelReportes.tsx';
 
 
