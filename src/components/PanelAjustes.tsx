@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { PanelAjustesIndv } from "./PanelAjustesIndv";
 import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
 import { Button } from "./Button";
+import { Dropdown } from "./Dropdown";
 
 interface PanelAjustesProps {
   onAjustesAplicados: (count: number) => void;
@@ -15,6 +16,34 @@ interface ServerConfig {
   logger_path: string;
   version: string;
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Esto se tomará del back (solo para probar el dropdown)
+const servidoresPredef: Record<string, ServerConfig> = {
+  Sypago: {
+    listen: '0.0.0.0:3000',
+    logger: 'sypago-logger',
+    name: 'Sypago',
+    logger_path: '/var/log/sypago.log',
+    version: '2.3.1',
+  },
+  Mockingbird: {
+    listen: '0.0.0.0:8080',
+    logger: 'mockingbird-logger',
+    name: 'Mockingbird',
+    logger_path: '/var/log/mockingbird.log',
+    version: '1.0.0',
+  },
+  TestServer: {
+    listen: '127.0.0.1:3000',
+    logger: 'test-logger',
+    name: 'TestServer',
+    logger_path: '/tmp/testserver.log',
+    version: '0.9.0',
+  },
+};
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
 
@@ -36,6 +65,8 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
   const panelRefs = useRef<{ [key: number]: PanelAjustesIndvRef | null }>({});
   const [eliminando, setEliminando] = useState<number | null>(null);
   const [reseteando, setReseteando] = useState(false);
+  const [selectedServer, setSelectedServer] = useState<string>('Mockingbird');
+
 
 
   const agregarEscenario = () => {
@@ -106,12 +137,29 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
 
   return (
     <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
-      return (
     <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
       
 
     <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Configuración del Servidor</h2>
+    <div className="flex justify-between items-center mb-4">
+      <h2 className="text-2xl font-bold text-gray-900">Configuración del Servidor</h2>
+
+
+    <Dropdown
+      options={Object.keys(servidoresPredef).map((key) => ({
+        label: key,
+        value: key,
+      }))}
+      value={selectedServer}
+      onChange={(val) => {
+        setSelectedServer(val);
+        setServerConfig(servidoresPredef[val]);
+      }}
+    />
+
+
+
+    </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-sm font-bold text-gray-600">Name</label>
@@ -142,6 +190,7 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
         <h1 className="text-3xl font-bold text-gray-900">
           Ajustar escenarios
         </h1>
+        
         <div className="pt-6 flex justify-end">
             <Button
                 variant="ghost"

@@ -40,7 +40,6 @@ export const PanelAjustesIndv = forwardRef<PanelAjustesIndvRef>((_, ref) => {
   
 
 
-
   const [escenario, setEscenario] = useState<EscenarioState>({
     path: '/api/v1/ruta/del/recurso',
     method: 'GET',
