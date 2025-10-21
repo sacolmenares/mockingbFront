@@ -7,7 +7,31 @@ interface PanelAjustesProps {
   onAjustesAplicados: (count: number) => void;
 }
 
+
+interface ServerConfig {
+  listen: string;
+  logger: string;
+  name: string;
+  logger_path: string;
+  version: string;
+}
+
 export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
+
+
+  //Valores por defecto
+  const [serverConfig, setServerConfig] = useState<ServerConfig>({
+    listen: '0.0.0.0:8080',
+    logger: 'default',
+    name: 'mockingbird-server',
+    logger_path: '/var/log/mockingbird.log',
+    version: '1.0.0',
+  });
+
+  const handleServerConfigChange = (field: keyof ServerConfig, value: string) => {
+    setServerConfig(prevState => ({ ...prevState, [field]: value }));
+  };
+  
   const [escenarios, setEscenarios] = useState([{ id: Date.now() }]);
   const panelRefs = useRef<{ [key: number]: PanelAjustesIndvRef | null }>({});
   const [eliminando, setEliminando] = useState<number | null>(null);
@@ -30,52 +54,90 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
 
   const aplicarTodosLosEscenarios = () => {
     let hasErrors = false;
-    let validEscenarios = 0;
+    
 
-    escenarios.forEach((escenario, index) => {
+    const locationsData = escenarios.map(escenario => {
       const panelRef = panelRefs.current[escenario.id];
       if (panelRef) {
         const data = panelRef.getEscenarioData();
-        if (data === null) {
-          hasErrors = true;
-        } else {
-          validEscenarios++;
-          // Descargar cada escenario como archivo separado
-          const fileContent = JSON.stringify(data, null, 2);
-          const blob = new Blob([fileContent], { type: 'text/plain' });
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = `escenario_${index + 1}.txt`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
+        if (data === null) hasErrors = true;
+        return data;
       }
-    });
+      return null;
+    }).filter(Boolean); 
 
     if (hasErrors) {
-      alert("No se pueden guardar algunos escenarios: Hay errores en las rutas de endpoints.");
-    } else if (validEscenarios === 0) {
-      alert("No hay escenarios válidos para guardar.");
-    } else {
-      alert(`Se han descargado ${validEscenarios} escenario(s) exitosamente.`);
-      
-      // Notificar la cantidad de reportes que se van a recibir
-      onAjustesAplicados(validEscenarios);
- 
-      // Resetear después de aplicar
-      setReseteando(true);
+      alert("No se pueden guardar: Hay errores en las rutas de algunos escenarios.");
+      return; 
+    }
+
+
+    const finalConfig = {
+      http: {
+        servers: [
+          {
+            ...serverConfig,      
+            location: locationsData,  
+          }
+        ]
+      }
+    };
+    
+
+    console.log("GENERANDO CONFIGURACIÓN FINAL:", JSON.stringify(finalConfig, null, 2));
+    const fileContent = JSON.stringify(finalConfig, null, 2);
+    const blob = new Blob([fileContent], { type: 'application/json' }); 
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `configuracion_mockingbird.json`; //Nombre del archivo JSON que se genera
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+
+    onAjustesAplicados(locationsData.length);
+    setReseteando(true);
       setTimeout(() => {
         setEscenarios([{ id: Date.now() }]); 
         panelRefs.current = {}; 
-        setEliminando(null); 
         setReseteando(false); 
-      }, 1000); 
-    }
+      }, 3000);
   };
 
   return (
     <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
+      return (
+    <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
+      
+
+    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Configuración del Servidor</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-bold text-gray-600">Name</label>
+            <input type="text" value={serverConfig.name} onChange={(e) => handleServerConfigChange('name', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+          </div>
+          <div>
+            <label className="text-sm font-bold text-gray-600">Listen</label>
+            <input type="text" value={serverConfig.listen} onChange={(e) => handleServerConfigChange('listen', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+          </div>
+          <div>
+            <label className="text-sm font-bold text-gray-600">Version</label>
+            <input type="text" value={serverConfig.version} onChange={(e) => handleServerConfigChange('version', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-sm font-bold text-gray-600">Logger Path</label>
+            <input type="text" value={serverConfig.logger_path} onChange={(e) => handleServerConfigChange('logger_path', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+          </div>
+           <div>
+            <label className="text-sm font-bold text-gray-600">Logger</label>
+            <input type="text" value={serverConfig.logger} onChange={(e) => handleServerConfigChange('logger', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+          </div>
+        </div>
+      </div>
+      </div>
+
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
           Ajustar escenarios
@@ -95,9 +157,11 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
       </div>
 
       {reseteando && (
+        <div className="flex justify-center items-center py-8 animate-fadeInSimple">
         <div className="flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div> 
           <span className="ml-3 text-gray-600 font-medium">Aplicando ajustes...</span>
+        </div>
         </div>
       )}
       
@@ -119,7 +183,7 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
             className="eliminate-btn absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-red-500 hover:text-red-700 font-bold text-lg rounded-full hover:bg-red-50 transition-all duration-200"
             title="Eliminar este escenario"
           >
-            ✕
+            ✕ 
           </button>
 
            <PanelAjustesIndv 
@@ -143,9 +207,23 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
   );
 }
 
+
 // Animacion al aparecer el panel
 const style = document.createElement("style");
 style.innerHTML = `
+@keyframes fadeInSimple {
+  from { 
+    opacity: 0; 
+  }
+  to { 
+    opacity: 1; 
+  }
+}
+
+.animate-fadeInSimple {
+  animation: fadeInSimple 0.5s ease-out forwards;
+}
+
 @keyframes fadeInUp {
   0% { 
     opacity: 0; 
