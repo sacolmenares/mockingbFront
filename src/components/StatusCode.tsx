@@ -1,7 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
-// 1. MODIFICAMOS EL "CONTRATO" PARA ACEPTAR UNA LISTA DE OPCIONES OPCIONAL
+
 interface StatusCodeProps {
   label: string;
   value: number; 
@@ -15,11 +15,14 @@ const defaultResponseOptions = [
   { value: 401, label: '401 Not Authorized' },
   { value: 404, label: '404 Not Found' },
   { value: 500, label: '500 Internal Server Error' },
+  
+
 ];
 
 
 export function StatusCode({ label, value, onChange, options = defaultResponseOptions }: StatusCodeProps) {
   const [isOpen, setIsOpen] = useState(false);
+  
   
   return (
     <div>
@@ -32,7 +35,7 @@ export function StatusCode({ label, value, onChange, options = defaultResponseOp
           onBlur={() => setIsOpen(false)}
           className="w-full bg-gray-300/60 p-3 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent appearance-none pr-10"
         >
-          {/* 3. AHORA USAMOS LA LISTA 'options' QUE LLEGA COMO PROP */}
+
           {options.map(option => (
             <option key={option.value} value={option.value}>
               {option.label}
