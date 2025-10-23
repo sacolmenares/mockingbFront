@@ -1,4 +1,4 @@
-import { useState, useImperativeHandle, forwardRef } from 'react';
+import { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { EndpointInput } from './Endpointinput.tsx';
 import { StatusCode } from './StatusCode.tsx';
 import Latency from './Latency.tsx'; 
@@ -38,38 +38,84 @@ interface EscenarioState {
 
 export interface PanelAjustesIndvRef {
   getEscenarioData: () => any;
+  setEscenarioData: (data: Partial<EscenarioState> | null) => void;
 }
 
-export const PanelAjustesIndv = forwardRef<PanelAjustesIndvRef>((_, ref) => {
+export const PanelAjustesIndv = forwardRef<
+  PanelAjustesIndvRef,
+  { initialData?: Partial<EscenarioState>; selectedServer: string }
+>(({ initialData }, ref) => {
+
   
 
+    const [escenario, setEscenario] = useState<EscenarioState>({
+        path: initialData?.path || '/api/v1/ruta/del/recurso',
+        method: initialData?.method || 'GET',
+        schema: 'schemas/request.json',
+        status_code: initialData?.status_code || 200,
+        headers: { 'Content-Type': 'application/json' },
+        response: initialData?.response || '{"message": "success"}',
+        async: {
+          enabled: false,
+          url: 'http://callback.example.com',
+          method: 'POST',
+          timeout: 5000,
+          retries: 3,
+          retryDelay: 1000,
+          request: '{"data": "example"}',
+          headers: { "Content-Type": "application/json" },
+        },
+        chaos_injection: {
+          latency: null,
+          abort: false,
+          error: null,
+          probability: 0.0,
+        },
+      });
 
-  const [escenario, setEscenario] = useState<EscenarioState>({
-    path: '/api/v1/ruta/del/recurso',
-    method: 'GET',
-    schema: 'schemas/request.json',
-    status_code: 200,
-    headers: { 'Content-Type': 'application/json' },
-    response: '{"message": "success"}',
-    async: {
-      enabled: false,
-      url: 'http://callback.example.com',
-      method: 'POST',
-      timeout: 5000,
-      retries: 3,
-      retryDelay: 1000,
-      request: '{"data": "example"}',
-      headers: { "Content-Type": "application/json" },
-    },
-    chaos_injection: {
-      latency: null, 
-      abort: false,
-      error: null,
-      probability: 0.0,
-    },
-  });
-
+      useEffect(() => {
+        if (initialData) {
+          setEscenario((prev) => ({
+            ...prev,
+            path: initialData.path || prev.path,
+            method: initialData.method || prev.method,
+            response: initialData.response || prev.response,
+            status_code: initialData.status_code || prev.status_code,
+          }));
+        }
+      }, [initialData]);
+      
+      
   const [pathError, setPathError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialData) {
+      setEscenario(prev => ({
+        ...prev,
+        ...initialData
+      }));
+    }
+  }, [initialData]);
+  
+
+  /*
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+  useEffect(() => {
+    // Llamada al backend para obtener la configuración
+    fetch("/api/mock/config?server_name=bancrecer")
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Datos del backend:", data);
+
+        setEscenario((prev) => ({
+          ...prev,
+          ...data, 
+        }));
+      })
+      .catch((err) => console.error("Error al obtener los datos:", err));
+  }, []);
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+  */
 
 
   const handleStateChange = (field: string, value: any) => {
@@ -109,8 +155,23 @@ export const PanelAjustesIndv = forwardRef<PanelAjustesIndvRef>((_, ref) => {
         return null; 
       }
       return escenario;
+    },
+    setEscenarioData: (data: Partial<EscenarioState> | null) => {
+      if (!data) return;
+      // Mezclamos data sobre el estado actual del escenario
+      setEscenario((prev) => {
+        // clon simple
+        const next = JSON.parse(JSON.stringify(prev)) as EscenarioState;
+        // aplicamos campos recibidos (pueden venir solo algunos)
+        for (const key in data) {
+          // @ts-ignore
+          next[key] = (data as any)[key];
+        }
+        return next;
+      });
     }
   }));
+  
   
 
   const chaosErrorOptions = [ { value: 500, label: '500 Error' }, { value: 503, label: '503 Unavailable' } ];
@@ -159,7 +220,7 @@ export const PanelAjustesIndv = forwardRef<PanelAjustesIndvRef>((_, ref) => {
         
 
 
-
+{/* --- Sección de Headers Dinámicos --- */}
 <div className="border-t border-gray-200 pt-4">
   <h3 className="text-md font-bold text-gray-700 mb-3">Headers</h3>
   
@@ -349,6 +410,10 @@ export const PanelAjustesIndv = forwardRef<PanelAjustesIndvRef>((_, ref) => {
         </div>
 
       </div>
+
+
+
+
     </div>
   );
 });

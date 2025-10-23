@@ -17,33 +17,18 @@ interface ServerConfig {
   version: string;
 }
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Esto se tomará del back (solo para probar el dropdown)
-const servidoresPredef: Record<string, ServerConfig> = {
-  Sypago: {
-    listen: '0.0.0.0:3000',
-    logger: 'sypago-logger',
-    name: 'Sypago',
-    logger_path: '/var/log/sypago.log',
-    version: '2.3.1',
-  },
-  Mockingbird: {
-    listen: '0.0.0.0:8080',
-    logger: 'mockingbird-logger',
-    name: 'Mockingbird',
-    logger_path: '/var/log/mockingbird.log',
-    version: '1.0.0',
-  },
-  TestServer: {
-    listen: '127.0.0.1:3000',
-    logger: 'test-logger',
-    name: 'TestServer',
-    logger_path: '/tmp/testserver.log',
-    version: '0.9.0',
-  },
-};
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+interface EscenarioData {
+    endpoint: string;
+    method: string;
+    responseBody: string;
+    statusCode: number;
+  }
+  
+  interface Escenario {
+    id: number;
+    data?: EscenarioData; // opcional porque a veces puede estar vacío
+  }
+  
 
 export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
 
@@ -61,11 +46,19 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
     setServerConfig(prevState => ({ ...prevState, [field]: value }));
   };
   
-  const [escenarios, setEscenarios] = useState([{ id: Date.now() }]);
+  const [escenarios, setEscenarios] = useState<Escenario[]>([{ id: Date.now() }]);
   const panelRefs = useRef<{ [key: number]: PanelAjustesIndvRef | null }>({});
   const [eliminando, setEliminando] = useState<number | null>(null);
   const [reseteando, setReseteando] = useState(false);
   const [selectedServer, setSelectedServer] = useState<string>('Mockingbird');
+  const [backendEscenarios, setBackendEscenarios] = useState<any[]>([]);
+
+
+
+
+
+
+
 
 
 
@@ -83,6 +76,8 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
     }, 400); 
   };
 
+
+  //Creamos el JSON que veremos como un archivo (por ahora)
   const aplicarTodosLosEscenarios = () => {
     let hasErrors = false;
     
@@ -116,11 +111,12 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
     
 
     console.log("GENERANDO CONFIGURACIÓN FINAL:", JSON.stringify(finalConfig, null, 2));
+    //Aqui lo convertimos en texto para leer el archivo
     const fileContent = JSON.stringify(finalConfig, null, 2);
     const blob = new Blob([fileContent], { type: 'application/json' }); 
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `configuracion_mockingbird.json`; //Nombre del archivo JSON que se genera
+    link.download = `configuracion_mockingbird.json`; //Nombre del archivo
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -135,6 +131,72 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
       }, 3000);
   };
 
+
+
+// Ejecutar GET al seleccionar el nombre 
+const fetchServerData = async (serverName: string) => {
+  try {
+    const response = await fetch(`/api/mock/config?server_name=${serverName}`);
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+
+    const data = await response.json();
+
+
+    if (Array.isArray(data.scenarios)) {
+      setBackendEscenarios(data.scenarios);
+    
+      const nuevosEscenarios = data.scenarios.map((esc: any) => ({
+        id: Date.now() + Math.random(),
+        data: {
+          endpoint: esc.request_endpoint,
+          method: esc.request_method,
+          responseBody: esc.response_body,
+          statusCode: esc.response_status_code,
+        },
+      }));
+    
+
+      setEscenarios(nuevosEscenarios.length > 0 ? nuevosEscenarios : [{ id: Date.now() }]);
+    }
+
+    if (data.server_config) {
+      const server = data.server_config;
+      setServerConfig({
+        listen: server.listen || "",
+        logger: server.logger || "",
+        name: server.name || "",
+        logger_path: server.logger_path || "",
+        version: server.version || "",
+      });
+    } else {
+      setServerConfig({
+        listen: "0.0.0.0:3231",
+        logger: "default",
+        name: "mockingbird-server",
+        logger_path: "/var/log/mockingbird.log",
+        version: "1.0.0",
+      });
+    }
+
+  } catch (error) {
+    console.error("Error al obtener datos del servidor:", error);
+    // Si falla el fetch, resetea todo
+    setEscenarios([{ id: Date.now() }]);
+    setServerConfig({
+      listen: "0.0.0.0:8080",
+      logger: "default",
+      name: "mockingbird-server",
+      logger_path: "/var/log/mockingbird.log",
+      version: "1.0.0",
+    });
+  }
+};
+  
+
+
   return (
     <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
     <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
@@ -145,18 +207,62 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
       <h2 className="text-2xl font-bold text-gray-900">Configuración del Servidor</h2>
 
 
-    <Dropdown
-      options={Object.keys(servidoresPredef).map((key) => ({
-        label: key,
-        value: key,
-      }))}
-      value={selectedServer}
-      onChange={(val) => {
-        setSelectedServer(val);
-        setServerConfig(servidoresPredef[val]);
-      }}
-    />
+      <Dropdown 
+  options={[
+    { label: "Mockingbird (local)", value: "Mockingbird" },
+    { label: "Bancrecer", value: "Bancrecer" },
+    { label: "Sample", value: "Sample" },
+    { label: "CTS", value: "CTS" },
+  ]}
+  value={selectedServer}
+  onChange={(val) => {
+    setSelectedServer(val);
+  
+    const endpoints: Record<string, string> = {
+      Bancrecer: "bancrecer",
+      Sample: "sample",
+      CTS: "cts",
+    };
+  
+    if (endpoints[val]) {
+      fetchServerData(endpoints[val]);
+    } else {
+      setServerConfig({
+        listen: "0.0.0.0:8080",
+        logger: "default",
+        name: "mockingbird-server",
+        logger_path: "/var/log/mockingbird.log",
+        version: "1.0.0",
+      });
+    }
+  }}
+/>
 
+
+<button   //Aquí se realiza el put al presionar "Guardar Cambios"
+      onClick={async () => {
+        try {
+          const serverName = selectedServer.trim().toLowerCase();
+          const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ http: { servers: [serverConfig] } }),
+          });
+
+          if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+          const result = await response.json();
+          console.log("Cambios guardados en el servidor:", result);
+          alert("Configuración del servidor actualizada correctamente ✅");
+        } catch (error) {
+          console.error("Error al actualizar configuración:", error);
+          alert("❌ Error al guardar la configuración del servidor.");
+        }
+      }}
+      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+    >
+      Guardar cambios
+    </button>
 
 
     </div>
@@ -235,11 +341,14 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
             ✕ 
           </button>
 
-           <PanelAjustesIndv 
-             ref={(ref) => {
-               panelRefs.current[escenario.id] = ref;
-             }}
-           />
+          <PanelAjustesIndv
+  ref={(ref) => {
+    panelRefs.current[escenario.id] = ref;
+  }}
+  initialData={escenario.data} 
+  selectedServer={selectedServer}
+/>
+
         </div>
       ))}
 
