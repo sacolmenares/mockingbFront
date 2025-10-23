@@ -73,29 +73,35 @@ export const PanelAjustesIndv = forwardRef<
         },
       });
 
+      //Actualizar los datos 
       useEffect(() => {
         if (initialData) {
           setEscenario((prev) => ({
             ...prev,
-            path: initialData.path || prev.path,
-            method: initialData.method || prev.method,
-            response: initialData.response || prev.response,
-            status_code: initialData.status_code || prev.status_code,
+            path: initialData.path ?? prev.path,
+            method: initialData.method ?? prev.method,
+            response: initialData.response ?? prev.response,
+            status_code: initialData.status_code ?? prev.status_code,
+            schema: initialData.schema ?? prev.schema,
+            headers: initialData.headers ?? prev.headers,
+            async: {
+              ...prev.async,
+              ...(initialData.async || {}),
+            },
+            chaos_injection: {
+              ...prev.chaos_injection,
+              ...(initialData.chaos_injection || {}),
+            },
           }));
         }
       }, [initialData]);
+
+
       
       
   const [pathError, setPathError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (initialData) {
-      setEscenario(prev => ({
-        ...prev,
-        ...initialData
-      }));
-    }
-  }, [initialData]);
+
   
 
   /*

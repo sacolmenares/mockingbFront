@@ -18,16 +18,36 @@ interface ServerConfig {
 }
 
 interface EscenarioData {
-    endpoint: string;
+  path: string;
+  method: string;
+  response: string;
+  status_code: number;
+  headers?: Record<string, string>;
+  schema?: string;
+  async?: {
+    enabled: boolean;
+    url: string;
     method: string;
-    responseBody: string;
-    statusCode: number;
-  }
-  
-  interface Escenario {
-    id: number;
-    data?: EscenarioData; // opcional porque a veces puede estar vacío
-  }
+    timeout: number;
+    retries: number;
+    retryDelay: number;
+    request: string;
+    headers: Record<string, string>;
+  };
+  chaos_injection?: {
+    latency: number | null;
+    abort: boolean;
+    error: number | null;
+    probability?: number;
+  };
+}
+
+
+interface Escenario {
+  id: number;
+  data?: EscenarioData;
+}
+
   
 
 export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
@@ -51,12 +71,6 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
   const [eliminando, setEliminando] = useState<number | null>(null);
   const [reseteando, setReseteando] = useState(false);
   const [selectedServer, setSelectedServer] = useState<string>('Mockingbird');
-  const [backendEscenarios, setBackendEscenarios] = useState<any[]>([]);
-
-
-
-
-
 
 
 
@@ -65,6 +79,7 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
   const agregarEscenario = () => {
     setEscenarios([...escenarios, { id: Date.now() }]);
   };
+
 
 
   const eliminarEscenario = (id: number) => {
@@ -141,50 +156,66 @@ const fetchServerData = async (serverName: string) => {
       throw new Error(`Error HTTP: ${response.status}`);
     }
 
-
     const data = await response.json();
+    console.log("Datos del backend:", data);
 
+    // Obtener serverConfig
+    const server = data.server_config || data?.http?.servers?.[0];
+    if (server) {
+      setServerConfig({
+        listen: server.listen || "0.0.0.0:8080",
+        logger: server.logger || "default",
+        name: server.name || "mockingbird-server",
+        logger_path: server.logger_path || "/var/log/mockingbird.log",
+        version: server.version || "1.0.0",
+      });
+    }
 
-    if (Array.isArray(data.scenarios)) {
-      setBackendEscenarios(data.scenarios);
-    
-      const nuevosEscenarios = data.scenarios.map((esc: any) => ({
+    // Obtener escenarios
+    const locations = data?.http?.servers?.[0]?.location;
+    if (Array.isArray(locations)) {
+      const nuevosEscenarios = locations.map((esc: any) => ({
         id: Date.now() + Math.random(),
         data: {
-          endpoint: esc.request_endpoint,
-          method: esc.request_method,
-          responseBody: esc.response_body,
-          statusCode: esc.response_status_code,
+          path: esc.path || "/api/v1/recurso",
+          method: esc.method || "GET",
+          schema: esc.schema || "schemas/request.json",
+          status_code: esc.status_code || 200,
+          headers: esc.headers || { "Content-Type": "application/json" },
+          response: esc.response || '{"message": "success"}',
+          async: esc.async || {
+            enabled: false,
+            url: "http://callback.example.com",
+            method: "POST",
+            timeout: 5000,
+            retries: 3,
+            retryDelay: 1000,
+            request: '{"data": "example"}',
+            headers: { "Content-Type": "application/json" },
+          },
+          chaos_injection: esc.chaos_injection || {
+            latency: null,
+            abort: false,
+            error: null,
+            probability: 0.0,
+          },
         },
       }));
-    
 
-      setEscenarios(nuevosEscenarios.length > 0 ? nuevosEscenarios : [{ id: Date.now() }]);
+      setEscenarios(nuevosEscenarios.length > 0 ? nuevosEscenarios : [{
+        id: Date.now(),
+        data: {
+          path: "",
+          method: "",
+          response: "",
+          status_code: 200,
+        },
+      }]);
     }
-
-    if (data.server_config) {
-      const server = data.server_config;
-      setServerConfig({
-        listen: server.listen || "",
-        logger: server.logger || "",
-        name: server.name || "",
-        logger_path: server.logger_path || "",
-        version: server.version || "",
-      });
-    } else {
-      setServerConfig({
-        listen: "0.0.0.0:3231",
-        logger: "default",
-        name: "mockingbird-server",
-        logger_path: "/var/log/mockingbird.log",
-        version: "1.0.0",
-      });
-    }
-
   } catch (error) {
     console.error("Error al obtener datos del servidor:", error);
-    // Si falla el fetch, resetea todo
-    setEscenarios([{ id: Date.now() }]);
+
+    // Reset por si falla fetch
     setServerConfig({
       listen: "0.0.0.0:8080",
       logger: "default",
@@ -192,9 +223,10 @@ const fetchServerData = async (serverName: string) => {
       logger_path: "/var/log/mockingbird.log",
       version: "1.0.0",
     });
+    setEscenarios([{ id: Date.now() }]);
   }
 };
-  
+
 
 
   return (
@@ -209,7 +241,7 @@ const fetchServerData = async (serverName: string) => {
 
       <Dropdown 
   options={[
-    { label: "Mockingbird (local)", value: "Mockingbird" },
+    { label: "Mockingbird", value: "Mockingbird" },
     { label: "Bancrecer", value: "Bancrecer" },
     { label: "Sample", value: "Sample" },
     { label: "CTS", value: "CTS" },
@@ -333,6 +365,7 @@ const fetchServerData = async (serverName: string) => {
             overflow: eliminando === escenario.id ? 'hidden' : 'visible'
           }}
         >
+
           <button
             onClick={() => eliminarEscenario(escenario.id)}
             className="eliminate-btn absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-red-500 hover:text-red-700 font-bold text-lg rounded-full hover:bg-red-50 transition-all duration-200"
@@ -342,13 +375,12 @@ const fetchServerData = async (serverName: string) => {
           </button>
 
           <PanelAjustesIndv
-  ref={(ref) => {
-    panelRefs.current[escenario.id] = ref;
-  }}
-  initialData={escenario.data} 
-  selectedServer={selectedServer}
-/>
-
+            ref={(ref) => {
+              panelRefs.current[escenario.id] = ref;
+            }}
+            initialData={escenario.data} 
+            selectedServer={selectedServer}
+            />
         </div>
       ))}
 
@@ -366,7 +398,7 @@ const fetchServerData = async (serverName: string) => {
 }
 
 
-// Animacion al aparecer el panel
+// Animaciones al aparecer el panel
 const style = document.createElement("style");
 style.innerHTML = `
 @keyframes fadeInSimple {
