@@ -62,7 +62,7 @@ document.addEventListener("visibilitychange", handleVisibilityChange);
     <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Reportes</h1>
         <div className="bg-gray-100 text-gray-800 p-4 rounded-3xl shadow-3xl mx-auto">
-        <p className="italic">Proximamente aquí las métricas en conexion con Prometheus</p>
+        <p className="italic">Aquí muestra historial de operaciones (bd)</p>
         {mostrarMensaje && reportesCount > 0 && (
           <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg animate-fadeIn">
             <p className="font-medium text-lg">¡Se aplicaron {reportesCount} ajuste(s) exitosamente!</p>
