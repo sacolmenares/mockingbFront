@@ -6,11 +6,9 @@ import { Dropdown } from "./Dropdown";
 import YAML from "yaml";
 import { CircleX } from 'lucide-react';
 
-
 interface PanelAjustesProps {
   onAjustesAplicados: (count: number) => void;
 }
-
 
 interface ServerConfig {
   listen: string;
@@ -46,13 +44,11 @@ interface EscenarioData {
   };
 }
 
-
 interface Escenario {
   id: number;
   data?: EscenarioData;
 }
 
-  
 
 export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
   //Valores por defecto
@@ -217,6 +213,17 @@ const fetchServerData = async (serverName: string) => {
   }
 };
 
+// Nueva función para refrescar datos después de guardar
+const refreshDataAfterSave = async (serverName: string) => {
+  try {
+    // Pequeña pausa para asegurar que el backend procesa el cambio
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await fetchServerData(serverName);
+    console.log("✅ Datos refrescados después de guardar");
+  } catch (error) {
+    console.error("Error al refrescar datos:", error);
+  }
+};
 
 
   return (
@@ -269,6 +276,9 @@ const fetchServerData = async (serverName: string) => {
           const result = await response.text();
           console.log("Cambios guardados en el servidor:", result);
           alert("Configuración del servidor actualizada correctamente");
+          
+          // 🔑 AQUÍ: Refrescar datos después de guardar exitosamente
+          await refreshDataAfterSave(serverName);
         } catch (error) {
           console.error("Error al actualizar configuración:", error);
           alert("Error al guardar la configuración del servidor.");

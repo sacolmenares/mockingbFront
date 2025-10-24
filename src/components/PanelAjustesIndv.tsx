@@ -1,27 +1,30 @@
 import { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { EndpointInput } from './Endpointinput.tsx';
 import { StatusCode } from './StatusCode.tsx';
-import Latency from './Latency.tsx'; 
+import Latency from './Latency.tsx';
 //import { Switch } from "./Switch";
 
 
-
-interface AsyncConfig {
+interface BaseConfig {
   enabled: boolean;
+}
+
+
+interface AsyncConfig extends BaseConfig {
   url: string;
   method: string;
   timeout: number;
   retries: number;
   retryDelay: number;
   request: string;
-  headers: Record<string, string>; 
+  headers: Record<string, string>;
 }
 
-interface ChaosConfig {
-  enabled: boolean;
-  latency: number | null; 
-  abort: boolean;   
-  error: number | null; 
+
+interface ChaosConfig extends BaseConfig {
+  latency: number | null;
+  abort: boolean;
+  error: number | null;
   probability?: number;
 }
 
@@ -31,8 +34,8 @@ interface EscenarioState {
   method: string;
   schema: string;
   status_code: number;
-  headers: { [key: string]: string };
-  response: string; 
+  headers: Record<string, string>;
+  response: string;
   async: AsyncConfig;
   chaos_injection: ChaosConfig;
 }
@@ -41,6 +44,7 @@ export interface PanelAjustesIndvRef {
   getEscenarioData: () => any;
   setEscenarioData: (data: Partial<EscenarioState> | null) => void;
 }
+
 
 export const PanelAjustesIndv = forwardRef<
   PanelAjustesIndvRef,
