@@ -3,6 +3,9 @@ import { PanelAjustesIndv } from "./PanelAjustesIndv";
 import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
 import { Button } from "./Button";
 import { Dropdown } from "./Dropdown";
+import YAML from "yaml";
+import { CircleX } from 'lucide-react';
+
 
 interface PanelAjustesProps {
   onAjustesAplicados: (count: number) => void;
@@ -35,6 +38,7 @@ interface EscenarioData {
     headers: Record<string, string>;
   };
   chaos_injection?: {
+    enabled: boolean;
     latency: number | null;
     abort: boolean;
     error: number | null;
@@ -51,13 +55,11 @@ interface Escenario {
   
 
 export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
-
-
   //Valores por defecto
   const [serverConfig, setServerConfig] = useState<ServerConfig>({
     listen: '0.0.0.0:8080',
     logger: 'default',
-    name: 'mockingbird-server',
+    name: 'mockingbird-server-default',
     logger_path: '/var/log/mockingbird.log',
     version: '1.0.0',
   });
@@ -71,17 +73,7 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
   const [eliminando, setEliminando] = useState<number | null>(null);
   const [reseteando, setReseteando] = useState(false);
   const [selectedServer, setSelectedServer] = useState<string>('Mockingbird');
-
-
-
-
-
-  const agregarEscenario = () => {
-    setEscenarios([...escenarios, { id: Date.now() }]);
-  };
-
-
-
+  const agregarEscenario = () => {setEscenarios([...escenarios, { id: Date.now() }]);};
   const eliminarEscenario = (id: number) => {
     setEliminando(id);
     setTimeout(() => {
@@ -91,12 +83,11 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
     }, 400); 
   };
 
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //Creamos el JSON que veremos como un archivo (por ahora)
   const aplicarTodosLosEscenarios = () => {
     let hasErrors = false;
     
-
     const locationsData = escenarios.map(escenario => {
       const panelRef = panelRefs.current[escenario.id];
       if (panelRef) {
@@ -111,7 +102,6 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
       alert("No se pueden guardar: Hay errores en las rutas de algunos escenarios.");
       return; 
     }
-
 
     const finalConfig = {
       http: {
@@ -145,7 +135,7 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
         setReseteando(false); 
       }, 3000);
   };
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 // Ejecutar GET al seleccionar el nombre 
@@ -171,7 +161,7 @@ const fetchServerData = async (serverName: string) => {
       });
     }
 
-    // Obtener escenarios
+  
     const locations = data?.http?.servers?.[0]?.location;
     if (Array.isArray(locations)) {
       const nuevosEscenarios = locations.map((esc: any) => ({
@@ -231,72 +221,105 @@ const fetchServerData = async (serverName: string) => {
 
   return (
     <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
-    <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
-      
-
-    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-    <div className="flex justify-between items-center mb-4">
-      <h2 className="text-2xl font-bold text-gray-900">Configuración del Servidor</h2>
-
-
-      <Dropdown 
-  options={[
-    { label: "Mockingbird", value: "Mockingbird" },
-    { label: "Bancrecer", value: "Bancrecer" },
-    { label: "Sample", value: "Sample" },
-    { label: "CTS", value: "CTS" },
-  ]}
-  value={selectedServer}
-  onChange={(val) => {
-    setSelectedServer(val);
-  
-    const endpoints: Record<string, string> = {
-      Bancrecer: "bancrecer",
-      Sample: "sample",
-      CTS: "cts",
-    };
-  
-    if (endpoints[val]) {
-      fetchServerData(endpoints[val]);
-    } else {
-      setServerConfig({
-        listen: "0.0.0.0:8080",
-        logger: "default",
-        name: "mockingbird-server",
-        logger_path: "/var/log/mockingbird.log",
-        version: "1.0.0",
-      });
-    }
-  }}
-/>
-
-
-<button   //Aquí se realiza el put al presionar "Guardar Cambios"
+    <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">  
+    <div className="w-full flex items-center justify-between mt-4">
+        <h2 className="text-2xl font-bold text-gray-900">
+        Configuración del Servidor
+        </h2>
+    <Button
       onClick={async () => {
         try {
           const serverName = selectedServer.trim().toLowerCase();
+          console.log("Servidor seleccionado:", serverName);
+   
+          const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`)
+            .then(res => res.text());
+            console.log("YAML original obtenido:\n", originalYaml);
+
+          const doc = YAML.parseDocument(originalYaml);
+
+          const locationsData = Object.values(panelRefs.current)
+            .map(ref => ref?.getEscenarioData?.())
+            .filter((data) => data && data.enabled === true); // solo activados
+            console.log("Escenarios activados para enviar:", locationsData);
+
+          const originalLocations = doc.getIn(["http", "servers", 0, "location"]);
+
+        if (locationsData.length > 0) {
+          doc.setIn(["http", "servers", 0, "location"], locationsData);
+        } else {
+          // Si no hay nada activado, se mantiene original
+          doc.setIn(["http", "servers", 0, "location"], originalLocations);
+        }
+
+          const yamlString = doc.toString();
+          console.log("🧾 YAML final listo para enviar:\n", yamlString);
+
+          const jsonData = YAML.parse(yamlString); // convierte YAML → JSON
+          console.log("📦 JSON final enviado al backend:\n", jsonData);
+
           const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ http: { servers: [serverConfig] } }),
+            body: JSON.stringify(jsonData),
           });
 
           if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
 
-          const result = await response.json();
+          const result = await response.text();
           console.log("Cambios guardados en el servidor:", result);
-          alert("Configuración del servidor actualizada correctamente ✅");
+          alert("Configuración del servidor actualizada correctamente");
         } catch (error) {
           console.error("Error al actualizar configuración:", error);
-          alert("❌ Error al guardar la configuración del servidor.");
+          alert("Error al guardar la configuración del servidor.");
         }
       }}
-      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+      variant="ghost"
+      className="text-white bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 hover:bg-gradient-to-br 
+      focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium rounded-lg text-sm 
+      px-5 py-2.5 text-center me-2 mb-2 w-auto"
     >
       Guardar cambios
-    </button>
+    </Button>
+    </div> 
+    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+    <div className="flex justify-between items-center mb-4">
 
 
+      <Dropdown 
+      options={[
+        { label: "Mockingbird", value: "Mockingbird" }, //Ejemplo
+        { label: "Bancrecer", value: "Bancrecer" },
+        { label: "Sample", value: "Sample" },
+        { label: "CTS", value: "CTS" },
+      ]}
+      value={selectedServer}
+      onChange={(val) => {
+        setSelectedServer(val);
+      
+        const endpoints: Record<string, string> = {
+          Bancrecer: "bancrecer",
+          Sample: "sample",
+          CTS: "cts",
+        };
+      
+        if (endpoints[val]) {
+          fetchServerData(endpoints[val]);
+        } else {
+          setServerConfig({
+            listen: "0.0.0.0:8080",
+            logger: "default",
+            name: "mockingbird-server",
+            logger_path: "/var/log/mockingbird.log",
+            version: "1.0.0",
+          });
+        }
+      }}
+    />
+
+
+
+    {/*Config del servidor */}
     </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -326,9 +349,10 @@ const fetchServerData = async (serverName: string) => {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
-          Ajustar escenarios
+          Gestión de endpoints
         </h1>
-        
+
+      {/*  Botón para aplicar a todos los escenarios, REVISAR
         <div className="pt-6 flex justify-end">
             <Button
                 variant="ghost"
@@ -340,7 +364,7 @@ const fetchServerData = async (serverName: string) => {
                 {reseteando ? 'RESETEANDO...' : 'APLICAR TODOS'}
             </Button>
         </div>
-
+      */}
       </div>
 
       {reseteando && (
@@ -366,13 +390,14 @@ const fetchServerData = async (serverName: string) => {
           }}
         >
 
-          <button
+          <Button
             onClick={() => eliminarEscenario(escenario.id)}
-            className="eliminate-btn absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-red-500 hover:text-red-700 font-bold text-lg rounded-full hover:bg-red-50 transition-all duration-200"
-            title="Eliminar este escenario"
+            variant={"ghost"}
+            className="eliminate-btn absolute top-3 right-3 w-10 h-10 flex items-center justify-center text-red-500 hover:text-red-700 font-bold text-lg rounded-full hover:bg-red-50 transition-all duration-200"
+            title="Eliminar endpoint"
           >
-            ✕ 
-          </button>
+          <CircleX /> 
+          </Button>
 
           <PanelAjustesIndv
             ref={(ref) => {
@@ -387,7 +412,7 @@ const fetchServerData = async (serverName: string) => {
        <div className="pt-6 flex justify-start">
          <Button
            variant="ghost"
-           className="px-6 py-2 border border-green-600 text-green-600 bg-transparent hover:bg-green-600 hover:text-white w-auto"
+           className="text-white bg-gradient-to-r from-green-400 via-green-500 to-green-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-green-300 dark:focus:ring-green-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 w-auto"
            onClick={agregarEscenario}
          >
            + Agregar escenario

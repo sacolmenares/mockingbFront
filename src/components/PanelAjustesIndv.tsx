@@ -2,7 +2,7 @@ import { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { EndpointInput } from './Endpointinput.tsx';
 import { StatusCode } from './StatusCode.tsx';
 import Latency from './Latency.tsx'; 
-
+//import { Switch } from "./Switch";
 
 
 
@@ -18,6 +18,7 @@ interface AsyncConfig {
 }
 
 interface ChaosConfig {
+  enabled: boolean;
   latency: number | null; 
   abort: boolean;   
   error: number | null; 
@@ -66,6 +67,7 @@ export const PanelAjustesIndv = forwardRef<
           headers: { "Content-Type": "application/json" },
         },
         chaos_injection: {
+          enabled: false,
           latency: null,
           abort: false,
           error: null,
@@ -157,11 +159,23 @@ export const PanelAjustesIndv = forwardRef<
 
   useImperativeHandle(ref, () => ({
     getEscenarioData: () => {
-      if (pathError) {
-        return null; 
+      if (pathError) return null;
+    
+      const clean = JSON.parse(JSON.stringify(escenario));
+    
+      // --- Limpiar chaos_injection si está deshabilitado ---
+      if (!clean.chaos_injection.enabled) {
+        clean.chaos_injection = {}; // o null, si el backend lo permite
       }
-      return escenario;
+    
+      // --- Limpiar async si está deshabilitado ---
+      if (!clean.async.enabled) {
+        clean.async = {};
+      }
+    
+      return clean;
     },
+    
     setEscenarioData: (data: Partial<EscenarioState> | null) => {
       if (!data) return;
       // Mezclamos data sobre el estado actual del escenario
@@ -187,6 +201,62 @@ export const PanelAjustesIndv = forwardRef<
 
     <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-md border border-gray-200">
       <div className="space-y-6">
+
+      <div className="border-gray-200 pt-4">
+          <h3 className="text-md font-bold text-gray-700 mb-3">Headers</h3>
+          
+          <div>
+
+          {Object.entries(escenario.async.headers).map(([key, value], index) => (
+            <div key={index} className="flex items-center gap-2 mb-2 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
+              <input
+                type="text"
+                value={key.startsWith('header-') ? '' : key}
+                onChange={(e) => {
+                  const newKey = e.target.value || `header-${Date.now()}`;
+                  const newHeaders = { ...escenario.async.headers };
+                  delete newHeaders[key];
+                  newHeaders[newKey] = value;
+                  handleStateChange('async.headers', newHeaders);
+                }}
+                className="w-1/3 bg-gray-100 p-2 rounded-lg text-sm"
+                placeholder="Header name"
+              />
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => {
+                  const newHeaders = { ...escenario.async.headers, [key]: e.target.value };
+                  handleStateChange('async.headers', newHeaders);
+                }}
+                className="w-2/3 bg-gray-100 p-2 rounded-lg text-sm"
+                placeholder="Header value"
+              />
+              <button
+                onClick={() => {
+                  const newHeaders = { ...escenario.async.headers };
+                  delete newHeaders[key];
+                  handleStateChange('async.headers', newHeaders);
+                }}
+                className="text-red-500 hover:text-red-700 font-bold transition-transform duration-200 hover:scale-110"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+
+          <button
+            onClick={() => {
+              const newHeaders = { ...escenario.async.headers, [`header-${Date.now()}`]: '' };
+              handleStateChange('async.headers', newHeaders);
+            }}
+            className="text-sm text-blue-600 font-semibold mt-2 hover:underline transition-all duration-300 hover:text-blue-800"
+          >
+            + Agregar Header
+          </button>
+        </div>
+        </div>
+
         
 
         <EndpointInput
@@ -196,25 +266,25 @@ export const PanelAjustesIndv = forwardRef<
           onPathChange={handlePathChange}
         />
         {pathError && (<p className="text-xs text-red-600 -mt-4 ml-2">{pathError}</p>)}
-        
+
         <div>
-          <label className="block text-sm font-bold text-gray-600 mb-2">Schema (JSON o ruta)</label>
+          <label className="block text-sm font-bold text-gray-600 mb-2">Response</label>
+          <textarea 
+            value={escenario.response}
+            onChange={(e) => handleStateChange('response', e.target.value)}
+            className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+            rows={3}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-gray-600 mb-2">Schema</label>
           <textarea
             value={escenario.schema}
             onChange={(e) => handleStateChange('schema', e.target.value)}
             className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
             rows={3}
             placeholder='Ejemplo: {"type": "object", "properties": { "id": {"type": "number"} }}'
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-bold text-gray-600 mb-2">Response Body (JSON)</label>
-          <textarea 
-            value={escenario.response}
-            onChange={(e) => handleStateChange('response', e.target.value)}
-            className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
-            rows={3}
           />
         </div>
         
@@ -226,97 +296,71 @@ export const PanelAjustesIndv = forwardRef<
         
 
 
-{/* --- Sección de Headers Dinámicos --- */}
-<div className="border-t border-gray-200 pt-4">
-  <h3 className="text-md font-bold text-gray-700 mb-3">Headers</h3>
-  
-  <div>
-
-  {Object.entries(escenario.async.headers).map(([key, value], index) => (
-    <div key={index} className="flex items-center gap-2 mb-2 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
-      <input
-        type="text"
-        value={key.startsWith('header-') ? '' : key}
-        onChange={(e) => {
-          const newKey = e.target.value || `header-${Date.now()}`;
-          const newHeaders = { ...escenario.async.headers };
-          delete newHeaders[key];
-          newHeaders[newKey] = value;
-          handleStateChange('async.headers', newHeaders);
-        }}
-        className="w-1/3 bg-gray-100 p-2 rounded-lg text-sm"
-        placeholder="Header name"
-      />
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => {
-          const newHeaders = { ...escenario.async.headers, [key]: e.target.value };
-          handleStateChange('async.headers', newHeaders);
-        }}
-        className="w-2/3 bg-gray-100 p-2 rounded-lg text-sm"
-        placeholder="Header value"
-      />
-      <button
-        onClick={() => {
-          const newHeaders = { ...escenario.async.headers };
-          delete newHeaders[key];
-          handleStateChange('async.headers', newHeaders);
-        }}
-        className="text-red-500 hover:text-red-700 font-bold transition-transform duration-200 hover:scale-110"
-      >
-        ✕
-      </button>
-    </div>
-  ))}
-
-  <button
-    onClick={() => {
-      const newHeaders = { ...escenario.async.headers, [`header-${Date.now()}`]: '' };
-      handleStateChange('async.headers', newHeaders);
-    }}
-    className="text-sm text-blue-600 font-semibold mt-2 hover:underline transition-all duration-300 hover:text-blue-800"
-  >
-    + Agregar Header
-  </button>
-</div>
-
-
-
-
-</div>
-
-
 
         <div className="border-t border-gray-200 pt-4 space-y-3">
-          <h3 className="text-md font-bold text-gray-700">Chaos Injection (Location)</h3>
           <div className="flex items-center justify-between">
-            <label className="text-sm text-gray-600">Habilitar Latencia</label>
-            <input type="checkbox" checked={escenario.chaos_injection.latency !== null} onChange={(e) => handleStateChange('chaos_injection.latency', e.target.checked ? 0 : null)} className="h-5 w-5 rounded accent-green-600"/>
-          </div>
-
-          {escenario.chaos_injection.latency !== null && (
-             <Latency value={escenario.chaos_injection.latency} onChange={(v) => handleStateChange('chaos_injection.latency', v)} />
-          )}
-
-           <div className="flex items-center justify-between">
-            <label className="text-sm text-gray-600">Habilitar Abort</label>
-            <input type="checkbox" checked={escenario.chaos_injection.abort} onChange={(e) => handleStateChange('chaos_injection.abort', e.target.checked)} className="h-5 w-5 rounded accent-green-600"/>
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-sm text-gray-600">Habilitar Error Code</label>
-            <input type="checkbox" checked={escenario.chaos_injection.error !== null} onChange={(e) => handleStateChange('chaos_injection.error', e.target.checked ? 500 : null)} className="h-5 w-5 rounded accent-green-600"/>
-          </div>
-
-          {escenario.chaos_injection.error !== null && (
-            <StatusCode
-              label="Error Status Code"
-              value={escenario.chaos_injection.error}
-              onChange={(v) => handleStateChange('chaos_injection.error', v)}
-              options={chaosErrorOptions}
+            <h3 className="text-md font-bold text-gray-700">Chaos Injection</h3>
+            <input
+              type="checkbox"
+              checked={escenario.chaos_injection.enabled}
+              onChange={(e) => handleStateChange('chaos_injection.enabled', e.target.checked)}
+              className="h-5 w-5 rounded accent-green-600"
             />
-          )}
+          </div>
+
+ 
+            {escenario.chaos_injection.enabled && (
+              <div className="pl-4 border-l-2 border-gray-200 space-y-3 pt-4">
+
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-gray-600">Habilitar Latencia</label>
+                  <input
+                    type="checkbox"
+                    checked={escenario.chaos_injection.latency !== null}
+                    onChange={(e) => handleStateChange('chaos_injection.latency', e.target.checked ? 0 : null)}
+                    className="h-5 w-5 rounded accent-green-600"
+                  />
+                </div>
+
+                {escenario.chaos_injection.latency !== null && (
+                  <Latency
+                    value={escenario.chaos_injection.latency}
+                    onChange={(v) => handleStateChange('chaos_injection.latency', v)}
+                  />
+                )}
+
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-gray-600">Habilitar Abort</label>
+                  <input
+                    type="checkbox"
+                    checked={escenario.chaos_injection.abort}
+                    onChange={(e) => handleStateChange('chaos_injection.abort', e.target.checked)}
+                    className="h-5 w-5 rounded accent-green-600"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-gray-600">Habilitar Error Code</label>
+                  <input
+                    type="checkbox"
+                    checked={escenario.chaos_injection.error !== null}
+                    onChange={(e) => handleStateChange('chaos_injection.error', e.target.checked ? 500 : null)}
+                    className="h-5 w-5 rounded accent-green-600"
+                  />
+                </div>
+
+                {escenario.chaos_injection.error !== null && (
+                  <StatusCode
+                    label="Error Status Code"
+                    value={escenario.chaos_injection.error}
+                    onChange={(v) => handleStateChange('chaos_injection.error', v)}
+                    options={chaosErrorOptions}
+                  />
+                )}
+              </div>
+            )}
         </div>
+
 
 
         <div className="border-t border-gray-200 pt-4 space-y-3">
