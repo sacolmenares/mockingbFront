@@ -35,7 +35,7 @@ export function EndpointInput({ method, path, onMethodChange, onPathChange }: En
 
   return (
     <div>
-      <label className="block text-sm font-bold text-gray-600 mb-2">Endpoint</label>
+      <label className="block text-sm font-bold text-gray-600 mb-2"></label>
       <div className="flex items-center">
         <div className="relative" ref={dropdownRef}>
 

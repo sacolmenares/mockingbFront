@@ -2,6 +2,7 @@ import { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { EndpointInput } from './Endpointinput.tsx';
 import { StatusCode } from './StatusCode.tsx';
 import Latency from './Latency.tsx';
+import { X } from 'lucide-react';
 //import { Switch } from "./Switch";
 
 
@@ -25,7 +26,7 @@ interface ChaosConfig extends BaseConfig {
   latency: number | null;
   abort: boolean;
   error: number | null;
-  probability?: number;
+  probability?: number | null;
 }
 
 
@@ -60,6 +61,13 @@ export const PanelAjustesIndv = forwardRef<
         status_code: initialData?.status_code || 200,
         headers: { 'Content-Type': 'application/json' },
         response: initialData?.response || '{"message": "success"}',
+        chaos_injection: {
+          enabled: false,
+          latency: null,
+          abort: false,
+          error: null,
+          probability: 0.0,
+        },
         async: {
           enabled: false,
           url: 'http://callback.example.com',
@@ -69,13 +77,6 @@ export const PanelAjustesIndv = forwardRef<
           retryDelay: 1000,
           request: '{"data": "example"}',
           headers: { "Content-Type": "application/json" },
-        },
-        chaos_injection: {
-          enabled: false,
-          latency: null,
-          abort: false,
-          error: null,
-          probability: 0.0,
         },
       });
 
@@ -167,18 +168,38 @@ export const PanelAjustesIndv = forwardRef<
     
       const clean = JSON.parse(JSON.stringify(escenario));
     
-      // --- Limpiar chaos_injection si está deshabilitado ---
-      if (!clean.chaos_injection.enabled) {
-        clean.chaos_injection = {}; // o null, si el backend lo permite
+      // --- Limpiar CHAOS ---
+      if (clean.chaos_injection) {
+        if (!clean.chaos_injection.enabled) {
+          delete clean.chaos_injection;
+        } else {
+          // Remueve valores innecesarios si están desactivados
+          if (clean.chaos_injection.latency === null) delete clean.chaos_injection.latency;
+          if (!clean.chaos_injection.abort) delete clean.chaos_injection.abort;
+          if (clean.chaos_injection.error === null) delete clean.chaos_injection.error;
+          if (
+            clean.chaos_injection.probability === null ||
+            clean.chaos_injection.probability === 0
+          )
+            delete clean.chaos_injection.probability;
+        }
       }
     
-      // --- Limpiar async si está deshabilitado ---
-      if (!clean.async.enabled) {
-        clean.async = {};
+      // --- Limpiar ASYNC ---
+      if (clean.async) {
+        if (!clean.async.enabled) {
+          delete clean.async;
+        } else {
+          // Limpieza de headers vacíos
+          clean.async.headers = Object.fromEntries(
+            Object.entries(clean.async.headers || {}).filter(([k, v]) => k && v)
+          );
+        }
       }
     
       return clean;
     },
+    
     
     setEscenarioData: (data: Partial<EscenarioState> | null) => {
       if (!data) return;
@@ -312,9 +333,21 @@ export const PanelAjustesIndv = forwardRef<
             />
           </div>
 
- 
+
+          
+
             {escenario.chaos_injection.enabled && (
               <div className="pl-4 border-l-2 border-gray-200 space-y-3 pt-4">
+
+              <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-2">Request</label>
+                    <textarea
+                      value={escenario.async.request}
+                      onChange={(e) => handleStateChange('async.request', e.target.value)}
+                      className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                      rows={3}
+                    />
+                  </div>
 
                 <div className="flex items-center justify-between">
                   <label className="text-sm text-gray-600">Habilitar Latencia</label>
@@ -361,6 +394,42 @@ export const PanelAjustesIndv = forwardRef<
                     options={chaosErrorOptions}
                   />
                 )}
+
+
+        <div className="flex items-center justify-between">
+          <label className="text-sm text-gray-600">Habilitar Probabilidad</label>
+          <input
+            type="checkbox"
+            checked={escenario.chaos_injection.probability !== null}
+            onChange={(e) =>
+              handleStateChange('chaos_injection.probability', e.target.checked ? 0 : null)
+            }
+            className="h-5 w-5 rounded accent-green-600"
+          />
+        </div>
+
+        {/* Input solo visible si está activado */}
+        {escenario.chaos_injection.probability !== null && (
+          <div className="flex items-center gap-2 pl-4">
+            <label className="text-sm text-gray-600">Probabilidad (%)</label>
+            <input
+              type="number"
+              value={escenario.chaos_injection.probability}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (value >= 0 && value <= 100) {
+                  handleStateChange('chaos_injection.probability', value);
+                }
+              }}
+              className="w-24 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+              placeholder="0–100"
+              min={0}
+              max={100}
+            />
+          </div>
+        )}
+
+
               </div>
             )}
         </div>
@@ -376,80 +445,16 @@ export const PanelAjustesIndv = forwardRef<
           {escenario.async.enabled && (
   <div className="pl-4 border-l-2 border-gray-200 space-y-4 pt-4">
 
-    {/* URL Callback */}
-    <div>
-      <label className="block text-sm font-bold text-gray-600 mb-2">URL Callback</label>
-      <input
-        type="text"
-        value={escenario.async.url}
-        onChange={(e) => handleStateChange('async.url', e.target.value)}
-        className="w-full bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
+<EndpointInput
+          method={escenario.method}
+          path={escenario.path}
+          onMethodChange={(v) => handleStateChange('method', v)}
+          onPathChange={handlePathChange}
+        />
 
-    {/* Headers dinámicos */}
-    <div>
-      <label className="block text-sm font-bold text-gray-600 mb-2">Headers</label>
-
-      {Object.entries(escenario.async.headers).map(([key, value], index) => (
-        <div key={index} className="flex items-center gap-2 mb-2">
-          <input
-            type="text"
-            value={key}
-            onChange={(e) => {
-              const newHeaders = { ...escenario.async.headers };
-              const newKey = e.target.value;
-              delete newHeaders[key];
-              newHeaders[newKey] = value;
-              handleStateChange('async.headers', newHeaders);
-            }}
-            className="w-1/3 bg-gray-100 p-2 rounded-lg text-sm"
-            placeholder="Header name"
-          />
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => {
-              const newHeaders = { ...escenario.async.headers, [key]: e.target.value };
-              handleStateChange('async.headers', newHeaders);
-            }}
-            className="w-2/3 bg-gray-100 p-2 rounded-lg text-sm"
-            placeholder="Header value"
-          />
-          <button
-            onClick={() => {
-              const newHeaders = { ...escenario.async.headers };
-              delete newHeaders[key];
-              handleStateChange('async.headers', newHeaders);
-            }}
-            className="text-red-500 hover:text-red-700 font-bold"
-          >
-            ✕
-          </button>
-        </div>
-      ))}
-
-
-      <button
-        onClick={() => {
-          const newHeaders = { ...escenario.async.headers };
-          // Agrega un header vacío (clave y valor vacíos)
-          newHeaders[''] = '';
-          handleStateChange('async.headers', newHeaders);
-        }}
-        className="text-sm text-blue-600 font-semibold mt-2 hover:underline"
-      >
-        + Agregar Header
-      </button>
-
-
-
-
-    </div>
-
-    {/* Request Body */}
-    <div>
-      <label className="block text-sm font-bold text-gray-600 mb-2">Request Body (JSON)</label>
+    
+<div>
+      <label className="block text-sm font-bold text-gray-600 mb-2">Request</label>
       <textarea
         value={escenario.async.request}
         onChange={(e) => handleStateChange('async.request', e.target.value)}
@@ -457,17 +462,68 @@ export const PanelAjustesIndv = forwardRef<
         rows={3}
       />
     </div>
-  </div>
-)}
 
 
-        </div>
+    <div>
+      <label className="block text-sm font-bold text-gray-600 mb-2">Headers</label>
 
+      {Object.entries(escenario.async.headers).map(([key, value], index) => (
+            <div key={index} className="flex items-center gap-2 mb-2 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
+              <input
+                type="text"
+                value={key.startsWith('header-') ? '' : key}
+                onChange={(e) => {
+                  const newKey = e.target.value || `header-${Date.now()}`;
+                  const newHeaders = { ...escenario.async.headers };
+                  delete newHeaders[key];
+                  newHeaders[newKey] = value;
+                  handleStateChange('async.headers', newHeaders);
+                }}
+                className="w-1/3 bg-gray-100 p-2 rounded-lg text-sm"
+                placeholder="Header name"
+              />
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => {
+                  const newHeaders = { ...escenario.async.headers, [key]: e.target.value };
+                  handleStateChange('async.headers', newHeaders);
+                }}
+                className="w-2/3 bg-gray-100 p-2 rounded-lg text-sm"
+                placeholder="Header value"
+              />
+              <button
+                onClick={() => {
+                  const newHeaders = { ...escenario.async.headers };
+                  delete newHeaders[key];
+                  handleStateChange('async.headers', newHeaders);
+                }}
+                className="text-red-500 hover:text-red-700 font-bold transition-transform duration-200 hover:scale-110"
+              >
+                <X />
+              </button>
+            </div>
+          ))}
+
+
+<button
+  onClick={() => {
+    const newHeaders = { ...escenario.async.headers };
+
+    const uniqueKey = `header-${Date.now()}-${Object.keys(newHeaders).length}`;
+    newHeaders[uniqueKey] = '';
+
+    handleStateChange('async.headers', newHeaders);
+  }}
+  className="text-sm text-blue-600 font-semibold mt-2 hover:underline"
+>
+  + Agregar Header
+</button>
       </div>
-
-
-
-
-    </div>
+     </div>
+)}
+      </div>
+      </div>
+      </div>
   );
 });

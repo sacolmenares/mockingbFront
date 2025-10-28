@@ -6,6 +6,14 @@ import { Dropdown } from "./Dropdown";
 import YAML from "yaml";
 import { CircleX } from 'lucide-react';
 
+const defaultServerConfig: ServerConfig = {
+  listen: "0.0.0.0:8080",
+  logger: "default",
+  name: "Example-server",
+  logger_path: "/var/log/Example.log",
+  version: "2.0.0",
+};
+
 interface PanelAjustesProps {
   onAjustesAplicados: (count: number) => void;
 }
@@ -26,7 +34,7 @@ interface EscenarioData {
   headers?: Record<string, string>;
   schema?: string;
   async?: {
-    enabled: boolean;
+    enabled: boolean; 
     url: string;
     method: string;
     timeout: number;
@@ -36,7 +44,7 @@ interface EscenarioData {
     headers: Record<string, string>;
   };
   chaos_injection?: {
-    enabled: boolean;
+    enabled: boolean; 
     latency: number | null;
     abort: boolean;
     error: number | null;
@@ -49,16 +57,16 @@ interface Escenario {
   data?: EscenarioData;
 }
 
+//Función para obtener el serverConfig
+const getServerConfigFromAPI = async (serverName: string) => { 
+  const res = await fetch(`/api/mock/config?server_name=${serverName}`);
+  if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+  return res.json();
+};
 
-export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
-  //Valores por defecto
-  const [serverConfig, setServerConfig] = useState<ServerConfig>({
-    listen: '0.0.0.0:8080',
-    logger: 'default',
-    name: 'mockingbird-server-default',
-    logger_path: '/var/log/mockingbird.log',
-    version: '1.0.0',
-  });
+
+export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelAjustesProps) {
+  const [serverConfig, setServerConfig] = useState<ServerConfig>(defaultServerConfig);
 
   const handleServerConfigChange = (field: keyof ServerConfig, value: string) => {
     setServerConfig(prevState => ({ ...prevState, [field]: value }));
@@ -67,7 +75,7 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
   const [escenarios, setEscenarios] = useState<Escenario[]>([{ id: Date.now() }]);
   const panelRefs = useRef<{ [key: number]: PanelAjustesIndvRef | null }>({});
   const [eliminando, setEliminando] = useState<number | null>(null);
-  const [reseteando, setReseteando] = useState(false);
+  const [reseteando, _setReseteando] = useState(false);
   const [selectedServer, setSelectedServer] = useState<string>('Mockingbird');
   const agregarEscenario = () => {setEscenarios([...escenarios, { id: Date.now() }]);};
   const eliminarEscenario = (id: number) => {
@@ -81,6 +89,7 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //Creamos el JSON que veremos como un archivo (por ahora)
+  /*
   const aplicarTodosLosEscenarios = () => {
     let hasErrors = false;
     
@@ -131,34 +140,30 @@ export function PanelAjustes({ onAjustesAplicados }: PanelAjustesProps) {
         setReseteando(false); 
       }, 3000);
   };
+  */
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 // Ejecutar GET al seleccionar el nombre 
 const fetchServerData = async (serverName: string) => {
   try {
-    const response = await fetch(`/api/mock/config?server_name=${serverName}`);
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
 
-    const data = await response.json();
-    console.log("Datos del backend:", data);
+    const data = await getServerConfigFromAPI(serverName);
+    //console.log("Datos del backend:", data);
 
-    // Obtener serverConfig
     const server = data.server_config || data?.http?.servers?.[0];
-    if (server) {
-      setServerConfig({
-        listen: server.listen || "0.0.0.0:8080",
-        logger: server.logger || "default",
-        name: server.name || "mockingbird-server",
-        logger_path: server.logger_path || "/var/log/mockingbird.log",
-        version: server.version || "1.0.0",
-      });
-    }
+      if (server) {
+        setServerConfig({
+          listen: server.listen ?? defaultServerConfig.listen,
+          logger: server.logger ?? defaultServerConfig.logger,
+          name: server.name ?? defaultServerConfig.name,
+          logger_path: server.logger_path ?? defaultServerConfig.logger_path,
+          version: server.version ?? defaultServerConfig.version,
+        });
+      }
 
-  
-    const locations = data?.http?.servers?.[0]?.location;
+
+  const locations = data?.http?.servers?.[0]?.location;
     if (Array.isArray(locations)) {
       const nuevosEscenarios = locations.map((esc: any) => ({
         id: Date.now() + Math.random(),
@@ -199,89 +204,161 @@ const fetchServerData = async (serverName: string) => {
       }]);
     }
   } catch (error) {
-    console.error("Error al obtener datos del servidor:", error);
+    //console.error("Error al obtener datos del servidor:", error);
 
     // Reset por si falla fetch
-    setServerConfig({
-      listen: "0.0.0.0:8080",
-      logger: "default",
-      name: "mockingbird-server",
-      logger_path: "/var/log/mockingbird.log",
-      version: "1.0.0",
-    });
+    setServerConfig(defaultServerConfig);
+
     setEscenarios([{ id: Date.now() }]);
   }
 };
 
-// Nueva función para refrescar datos después de guardar
-const refreshDataAfterSave = async (serverName: string) => {
-  try {
-    // Pequeña pausa para asegurar que el backend procesa el cambio
-    await new Promise(resolve => setTimeout(resolve, 500));
-    await fetchServerData(serverName);
-    console.log("✅ Datos refrescados después de guardar");
-  } catch (error) {
-    console.error("Error al refrescar datos:", error);
-  }
-};
+
+const refreshDataAfterSave = (serverName: string) =>
+  new Promise<void>((resolve) => {
+    setTimeout(async () => {
+      await fetchServerData(serverName);
+      resolve();
+    }, 500);
+  });
+
+
+  //Enviar Caos y Async si se activan 
+  const getActiveLocations = () => {
+    const escenariosActivos = Object.values(panelRefs.current)
+      .map(ref => ref?.getEscenarioData?.())
+      .filter((data) => data && typeof data === "object");
+  
+    if (escenariosActivos.length === 0) {
+      console.warn("No se encontraron escenarios activos válidos.");
+      return [];
+    }
+  
+    // Validar configuración de caos y async
+    escenariosActivos.forEach((escenario: any) => {
+      if (escenario?.chaos_injection?.enabled) {
+        const { latency, abort, error, probability } = escenario.chaos_injection;
+        const tieneValores =
+          latency !== null ||
+          abort === true ||
+          (error !== null && !isNaN(error)) ||
+          (probability !== undefined && probability > 0);
+  
+        if (!tieneValores) {
+          throw new Error(
+            `El escenario "${escenario.path || "(sin path)"}" tiene el caos activado pero sin configuración válida.`
+          );
+        }
+      }
+  
+      if (escenario?.async?.enabled) {
+        const { url, method, timeout } = escenario.async;
+        if (!url || !method || !timeout) {
+          throw new Error(
+            `El escenario "${escenario.path || "(sin path)"}" tiene la opción asíncrona activa pero faltan campos.`
+          );
+        }
+      }
+    });
+  
+    // Ordenar estructura
+    const escenariosOrdenados = escenariosActivos.map((esc: any) => {
+      // Mantener el orden original del escenario
+      const escenarioCompleto = { ...esc };
+    
+      // Solo limpiar campos innecesarios, mantener el orden
+      if (escenarioCompleto.chaos_injection && !escenarioCompleto.chaos_injection.enabled) {
+        delete escenarioCompleto.chaos_injection;
+      }
+      if (escenarioCompleto.async && !escenarioCompleto.async.enabled) {
+        delete escenarioCompleto.async;
+      }
+    
+      return escenarioCompleto;
+    });
+    
+    
+  
+    return escenariosOrdenados;
+  };
+  
+  
+  
+  
+  
+
 
 
   return (
     <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
-    <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">  
     <div className="w-full flex items-center justify-between mt-4">
         <h2 className="text-2xl font-bold text-gray-900">
         Configuración del Servidor
         </h2>
+
     <Button
       onClick={async () => {
         try {
-          const serverName = selectedServer.trim().toLowerCase();
-          console.log("Servidor seleccionado:", serverName);
+          const serverName = selectedServer.trim().toLowerCase(); 
+          //console.log("Servidor seleccionado:", serverName);
    
-          const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`)
-            .then(res => res.text());
-            console.log("YAML original obtenido:\n", originalYaml);
+          const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
+           //console.log("YAML original obtenido:\n", originalYaml);
+ 
+           const doc = YAML.parseDocument(originalYaml);
+ 
+           const locationsData = getActiveLocations();
+ 
+           const originalLocations = doc.getIn(["http", "servers", 0, "location"]);
+          const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
 
-          const doc = YAML.parseDocument(originalYaml);
+          // Detectar cambios en serverConfig y aplicar solo los que difieren
+          const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
+          const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
+          if (hasServerChanges) {
+            for (const key of serverKeys) {
+              const prevVal: string | null = originalServer?.[key] ?? null;
+              const nextVal = serverConfig[key];
+              if (prevVal !== nextVal) {
+                doc.setIn(["http", "servers", 0, key], nextVal);
+              }
+            }
+          }
 
-          const locationsData = Object.values(panelRefs.current)
-            .map(ref => ref?.getEscenarioData?.())
-            .filter((data) => data && data.enabled === true); // solo activados
-            console.log("Escenarios activados para enviar:", locationsData);
+          // Cambios en locations
+          const hasLocationsChanges = JSON.stringify(originalLocations) !== JSON.stringify(locationsData);
 
-          const originalLocations = doc.getIn(["http", "servers", 0, "location"]);
+          //Si no cambia nada en server ni locations, no se envía nada
+          if (!hasServerChanges && !hasLocationsChanges) {
+            alert("No hay cambios que guardar.");
+            return;
+          }
+          
 
-        if (locationsData.length > 0) {
-          doc.setIn(["http", "servers", 0, "location"], locationsData);
-        } else {
-          // Si no hay nada activado, se mantiene original
-          doc.setIn(["http", "servers", 0, "location"], originalLocations);
-        }
+          if (hasLocationsChanges) {
+            if (locationsData.length > 0) {
+              doc.setIn(["http", "servers", 0, "location"], locationsData);
+            } else {
+              doc.setIn(["http", "servers", 0, "location"], originalLocations);
+            }
+          }
 
-          const yamlString = doc.toString();
-          console.log("🧾 YAML final listo para enviar:\n", yamlString);
-
-          const jsonData = YAML.parse(yamlString); // convierte YAML → JSON
-          console.log("📦 JSON final enviado al backend:\n", jsonData);
+          const jsonData = doc.toJS(); 
 
           const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(jsonData),
+            body: JSON.stringify(jsonData), //Enviamos como JSON
           });
 
           if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
 
-          const result = await response.text();
-          console.log("Cambios guardados en el servidor:", result);
           alert("Configuración del servidor actualizada correctamente");
           
-          // 🔑 AQUÍ: Refrescar datos después de guardar exitosamente
           await refreshDataAfterSave(serverName);
         } catch (error) {
-          console.error("Error al actualizar configuración:", error);
-          alert("Error al guardar la configuración del servidor.");
+          const errorMessage = error instanceof Error ? error.message : "Error al guardar la configuración del servidor.";
+          alert(errorMessage);
         }
       }}
       variant="ghost"
@@ -298,7 +375,7 @@ const refreshDataAfterSave = async (serverName: string) => {
 
       <Dropdown 
       options={[
-        { label: "Mockingbird", value: "Mockingbird" }, //Ejemplo
+        { label: "Example", value: "Mockingbird" }, //Ejemplo
         { label: "Bancrecer", value: "Bancrecer" },
         { label: "Sample", value: "Sample" },
         { label: "CTS", value: "CTS" },
@@ -316,13 +393,7 @@ const refreshDataAfterSave = async (serverName: string) => {
         if (endpoints[val]) {
           fetchServerData(endpoints[val]);
         } else {
-          setServerConfig({
-            listen: "0.0.0.0:8080",
-            logger: "default",
-            name: "mockingbird-server",
-            logger_path: "/var/log/mockingbird.log",
-            version: "1.0.0",
-          });
+          setServerConfig(defaultServerConfig);
         }
       }}
     />
@@ -354,8 +425,6 @@ const refreshDataAfterSave = async (serverName: string) => {
           </div>
         </div>
       </div>
-      </div>
-
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
