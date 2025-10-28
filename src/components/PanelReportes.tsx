@@ -33,9 +33,12 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
   const [reportes, setReportes] = useState<Reporte[]>([]);
   const [filtro, setFiltro] = useState("");
   const [columnasVisibles, setColumnasVisibles] = useState<string[]>([
+    "uuid",
+    "recepcion_id",
+    "sender_id",
     "timestamp",
-    "request_method",
     "request_endpoint",
+    "request_method",
     "response_status_code",
     "response_body",
   ]);
@@ -44,7 +47,7 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
   // Obtener datos de la API
   const fetchReportes = async () => {
     try {
-      const res = await fetch("/api/mock/data"); 
+      const res = await fetch("/api/mock/data"); // Cambia a tu endpoint real
       if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
       const data = await res.json();
       setReportes(data);
@@ -54,7 +57,7 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
   };
 
   useEffect(() => {
-    fetchReportes();
+    fetchReportes(); // ✅ Se ejecuta apenas se abre el panel
   }, []);
 
   // Mostrar mensaje si hay nuevos reportes
@@ -81,12 +84,12 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
     }
   }, [reportesCount, onReportesVistos]);
 
- 
+  // Filtrado de datos
   const reportesFiltrados = reportes.filter(r =>
     columnasVisibles.some(c => r[c]?.toString().toLowerCase().includes(filtro.toLowerCase()))
   );
 
-
+  // Alternar visibilidad de columnas
   const toggleColumna = (col: string) => {
     setColumnasVisibles(prev =>
       prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
@@ -97,35 +100,46 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
     <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-7xl mx-auto animate-fadeIn">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Historial de reportes</h1>
 
-<div className="w-full mb-3">
-  <input
-    type="text"
-    placeholder="Buscar..."
-    className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 text-base"
-    value={filtro}
-    onChange={e => setFiltro(e.target.value)}
-  />
-</div>
+      {/* Barra de búsqueda grande arriba */}
+      <div className="w-full mb-5">
+        <input
+          type="text"
+          placeholder="Buscar en todos los reportes..."
+          className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 text-base shadow-sm"
+          value={filtro}
+          onChange={e => setFiltro(e.target.value)}
+        />
+      </div>
 
+      {/* Botones en una sola línea */}
+      <div className="flex flex-nowrap overflow-x-auto gap-2 pb-3 mb-4">
+        {[
+          "uuid",
+          "recepcion_id",
+          "sender_id",
+          "timestamp",
+          "request_endpoint",
+          "request_method",
+          "response_status_code",
+          "request_body",
+          "response_body",
+        ].map(col => (
+          <button
+            key={col}
+            className={`text-white bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 
+                        hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-blue-300 
+                        dark:focus:ring-blue-800 font-medium rounded-lg text-sm px-3 py-1.5 
+                        text-center transition-all duration-300 whitespace-nowrap ${
+                          !columnasVisibles.includes(col) ? "opacity-60 hover:opacity-100" : ""
+                        }`}
+            onClick={() => toggleColumna(col)}
+          >
+            {col}
+          </button>
+        ))}
+      </div>
 
-<div className="flex flex-nowrap overflow-x-auto gap-2 pb-2 mb-4">
-  {["timestamp", "request_method", "request_endpoint", "response_status_code", "response_body"].map(col => (
-    <button
-      key={col}
-      className={`text-white bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 
-                  hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-blue-300 
-                  dark:focus:ring-blue-800 font-medium rounded-lg text-m px-3 py-1.5 
-                  text-center transition-all duration-300 whitespace-nowrap ${
-                    !columnasVisibles.includes(col) ? "opacity-60 hover:opacity-100" : ""
-                  }`}
-      onClick={() => toggleColumna(col)}
-    >
-      {col}
-    </button>
-  ))}
-</div>
-
-
+      {/* Mensaje de confirmación */}
       {mostrarMensaje && reportesCount > 0 && (
         <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg animate-fadeIn">
           <p className="font-medium text-lg">¡Se aplicaron {reportesCount} ajuste(s) exitosamente!</p>
@@ -133,6 +147,7 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
         </div>
       )}
 
+      {/* Tabla */}
       <div className="overflow-x-auto mt-6 bg-white rounded-2xl shadow-lg">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -152,7 +167,9 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
               <tr key={i} className="hover:bg-gray-100 transition-all">
                 {columnasVisibles.map(col => (
                   <td key={col} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {String(reporte[col])}
+                    {col === "request_body" || col === "response_body"
+                      ? String(reporte[col]).slice(0, 80) + "..."
+                      : String(reporte[col])}
                   </td>
                 ))}
               </tr>
