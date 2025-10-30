@@ -149,7 +149,7 @@ const fetchServerData = async (serverName: string) => {
   try {
 
     const data = await getServerConfigFromAPI(serverName);
-    //console.log("Datos del backend:", data);
+    console.log("Datos del backend:", data);
 
     const server = data.server_config || data?.http?.servers?.[0];
       if (server) {
@@ -170,7 +170,7 @@ const fetchServerData = async (serverName: string) => {
         data: {
           path: esc.path || "/api/v1/recurso",
           method: esc.method || "GET",
-          schema: esc.schema || "schemas/request.json",
+          schema: esc.schema,
           status_code: esc.status_code || 200,
           headers: esc.headers || { "Content-Type": "application/json" },
           response: esc.response || '{"message": "success"}',
@@ -204,7 +204,6 @@ const fetchServerData = async (serverName: string) => {
       }]);
     }
   } catch (error) {
-    //console.error("Error al obtener datos del servidor:", error);
 
     // Reset por si falla fetch
     setServerConfig(defaultServerConfig);
@@ -275,6 +274,7 @@ const refreshDataAfterSave = (serverName: string) =>
       }
     
       return escenarioCompleto;
+      console.log("Lo que se esta enviando", escenarioCompleto)
     });
     
     
@@ -309,7 +309,6 @@ const refreshDataAfterSave = (serverName: string) =>
  
            const locationsData = getActiveLocations();
  
-           const originalLocations = doc.getIn(["http", "servers", 0, "location"]);
           const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
 
           // Detectar cambios en serverConfig y aplicar solo los que difieren
@@ -325,23 +324,79 @@ const refreshDataAfterSave = (serverName: string) =>
             }
           }
 
-          // Cambios en locations
-          const hasLocationsChanges = JSON.stringify(originalLocations) !== JSON.stringify(locationsData);
+const jsOriginal = YAML.parse(originalYaml);
+const originalLocationsJS = jsOriginal?.http?.servers?.[0]?.location || [];
 
-          //Si no cambia nada en server ni locations, no se envía nada
-          if (!hasServerChanges && !hasLocationsChanges) {
-            alert("No hay cambios que guardar.");
-            return;
-          }
-          
+for (let i = 0; i < locationsData.length; i++) {
+  const loc = locationsData[i];
+  const orig = originalLocationsJS[i] || {};
 
-          if (hasLocationsChanges) {
-            if (locationsData.length > 0) {
-              doc.setIn(["http", "servers", 0, "location"], locationsData);
-            } else {
-              doc.setIn(["http", "servers", 0, "location"], originalLocations);
-            }
-          }
+  // Si el location no ha cambiado, no lo tocamos
+  if (JSON.stringify(orig) === JSON.stringify(loc)) continue;
+
+
+  if (!doc.getIn(["http", "servers", 0, "location", i])) {
+    doc.setIn(["http", "servers", 0, "location", i], {});
+  }
+
+  // headers
+  if (loc.headers !== undefined && Object.keys(loc.headers).length > 0) {
+    doc.setIn(["http", "servers", 0, "location", i, "headers"], loc.headers);
+  }
+
+  // method 
+  if (loc.method) {
+    doc.setIn(["http", "servers", 0, "location", i, "method"], loc.method);
+  }
+
+  // path 
+  if (loc.path) {
+    doc.setIn(["http", "servers", 0, "location", i, "path"], loc.path);
+  }
+
+  // response 
+  if (loc.response) {
+    doc.setIn(["http", "servers", 0, "location", i, "response"], loc.response);
+  }
+
+  // schema 
+  if (loc.schema && Object.keys(loc.schema).length > 0) {
+    doc.setIn(["http", "servers", 0, "location", i, "schema"], loc.schema);
+  } else if (loc.schema === undefined && orig.schema) {
+    //Si no cambio, pero ya existe
+    doc.setIn(["http", "servers", 0, "location", i, "schema"], orig.schema);
+  }
+
+  // status_code 
+  if (loc.status_code !== undefined) {
+    doc.setIn(["http", "servers", 0, "location", i, "status_code"], loc.status_code);
+  }
+
+  // chaos_injection 
+  if (loc.chaos_injection && loc.chaos_injection.enabled) {
+    doc.setIn(["http", "servers", 0, "location", i, "chaos_injection"], loc.chaos_injection);
+  } else if (loc.chaos_injection === undefined && orig.chaos_injection) {
+    doc.setIn(["http", "servers", 0, "location", i, "chaos_injection"], orig.chaos_injection);
+  }
+
+  // async
+  if (loc.async && loc.async.enabled) {
+    doc.setIn(["http", "servers", 0, "location", i, "async"], loc.async);
+  } else if (loc.async === undefined && orig.async) {
+    doc.setIn(["http", "servers", 0, "location", i, "async"], orig.async);
+  }
+}
+
+// Si se eliminaron en ajustes, se limpian
+const originalLocationNode = doc.getIn(["http", "servers", 0, "location"]) as unknown;
+const originalLength = Array.isArray(originalLocationNode) ? originalLocationNode.length : 0;
+if (originalLength > locationsData.length) {
+  for (let j = originalLength - 1; j >= locationsData.length; j--) {
+    doc.deleteIn(["http", "servers", 0, "location", j]);
+  }
+}
+
+
 
           const jsonData = doc.toJS(); 
 

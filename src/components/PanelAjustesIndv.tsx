@@ -52,7 +52,7 @@ export const PanelAjustesIndv = forwardRef<
   { initialData?: Partial<EscenarioState>; selectedServer: string }
 >(({ initialData }, ref) => {
 
-  
+    
 
     const [escenario, setEscenario] = useState<EscenarioState>({
         path: initialData?.path || '/api/v1/ruta/del/recurso',
