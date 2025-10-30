@@ -174,22 +174,48 @@ const fetchServerData = async (serverName: string) => {
           status_code: esc.status_code || 200,
           headers: esc.headers || { "Content-Type": "application/json" },
           response: esc.response || '{"message": "success"}',
-          async: esc.async || {
-            enabled: false,
-            url: "http://callback.example.com",
-            method: "POST",
-            timeout: 5000,
-            retries: 3,
-            retryDelay: 1000,
-            request: '{"data": "example"}',
-            headers: { "Content-Type": "application/json" },
-          },
-          chaos_injection: esc.chaos_injection || {
-            latency: null,
-            abort: false,
-            error: null,
-            probability: 0.0,
-          },
+       
+          async: esc.async
+            ? { 
+                url: "http://callback.example.com",
+                method: "POST",
+                timeout: 5000,
+                retries: 3,
+                retryDelay: 1000,
+                request: '{"data": "example"}',
+                headers: { "Content-Type": "application/json" },
+                ...(esc.async),
+                enabled: true 
+              }
+            : { 
+                enabled: false,
+                url: "http://callback.example.com",
+                method: "POST",
+                timeout: 5000,
+                retries: 3,
+                retryDelay: 1000,
+                request: '{"data": "example"}',
+                headers: { "Content-Type": "application/json" },
+              },
+
+           chaos_injection: esc.chaos_injection
+             ? { 
+                 latency: null,
+                 abort: false,
+                 error: null,
+                 probability: null,
+                 ...(esc.chaos_injection),
+                 enabled: true
+               }
+             : { 
+                 enabled: false, 
+                 latency: null,
+                 abort: false,
+                 error: null,
+                 probability: null,
+               },
+
+          
         },
       }));
 
@@ -260,21 +286,31 @@ const refreshDataAfterSave = (serverName: string) =>
       }
     });
   
-    // Ordenar estructura
+    // Ordenar estructura y remover flags internos (enabled) antes de serializar
     const escenariosOrdenados = escenariosActivos.map((esc: any) => {
-      // Mantener el orden original del escenario
-      const escenarioCompleto = { ...esc };
-    
-      // Solo limpiar campos innecesarios, mantener el orden
-      if (escenarioCompleto.chaos_injection && !escenarioCompleto.chaos_injection.enabled) {
-        delete escenarioCompleto.chaos_injection;
+      const escenarioCompleto: any = { ...esc };
+
+      // chaos_injection: eliminar si no está habilitado; si está habilitado, quitar "enabled"
+      if (escenarioCompleto.chaos_injection) {
+        const { enabled, ...restChaos } = escenarioCompleto.chaos_injection;
+        if (enabled) {
+          escenarioCompleto.chaos_injection = restChaos;
+        } else {
+          delete escenarioCompleto.chaos_injection;
+        }
       }
-      if (escenarioCompleto.async && !escenarioCompleto.async.enabled) {
-        delete escenarioCompleto.async;
+
+      // async: eliminar si no está habilitado; si está habilitado, quitar "enabled"
+      if (escenarioCompleto.async) {
+        const { enabled, ...restAsync } = escenarioCompleto.async;
+        if (enabled) {
+          escenarioCompleto.async = restAsync;
+        } else {
+          delete escenarioCompleto.async;
+        }
       }
-    
+
       return escenarioCompleto;
-      console.log("Lo que se esta enviando", escenarioCompleto)
     });
     
     

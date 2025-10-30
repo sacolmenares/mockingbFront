@@ -3,7 +3,7 @@ import { EndpointInput } from './Endpointinput.tsx';
 import { StatusCode } from './StatusCode.tsx';
 import Latency from './Latency.tsx';
 import { X } from 'lucide-react';
-//import { Switch } from "./Switch";
+
 
 
 interface BaseConfig {
@@ -66,7 +66,7 @@ export const PanelAjustesIndv = forwardRef<
           latency: null,
           abort: false,
           error: null,
-          probability: 0.0,
+          probability: null,
         },
         async: {
           enabled: false,
@@ -108,29 +108,6 @@ export const PanelAjustesIndv = forwardRef<
       
   const [pathError, setPathError] = useState<string | null>(null);
 
-
-  
-
-  /*
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-  useEffect(() => {
-    // Llamada al backend para obtener la configuración
-    fetch("/api/mock/config?server_name=bancrecer")
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("Datos del backend:", data);
-
-        setEscenario((prev) => ({
-          ...prev,
-          ...data, 
-        }));
-      })
-      .catch((err) => console.error("Error al obtener los datos:", err));
-  }, []);
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-  */
-
-
   const handleStateChange = (field: string, value: any) => {
     const keys = field.split('.');
     setEscenario(prevState => {
@@ -168,12 +145,10 @@ export const PanelAjustesIndv = forwardRef<
     
       const clean = JSON.parse(JSON.stringify(escenario));
     
-      // --- Limpiar CHAOS ---
       if (clean.chaos_injection) {
         if (!clean.chaos_injection.enabled) {
           delete clean.chaos_injection;
         } else {
-          // Remueve valores innecesarios si están desactivados
           if (clean.chaos_injection.latency === null) delete clean.chaos_injection.latency;
           if (!clean.chaos_injection.abort) delete clean.chaos_injection.abort;
           if (clean.chaos_injection.error === null) delete clean.chaos_injection.error;
@@ -185,12 +160,11 @@ export const PanelAjustesIndv = forwardRef<
         }
       }
     
-      // --- Limpiar ASYNC ---
+
       if (clean.async) {
         if (!clean.async.enabled) {
           delete clean.async;
         } else {
-          // Limpieza de headers vacíos
           clean.async.headers = Object.fromEntries(
             Object.entries(clean.async.headers || {}).filter(([k, v]) => k && v)
           );
@@ -203,11 +177,9 @@ export const PanelAjustesIndv = forwardRef<
     
     setEscenarioData: (data: Partial<EscenarioState> | null) => {
       if (!data) return;
-      // Mezclamos data sobre el estado actual del escenario
+
       setEscenario((prev) => {
-        // clon simple
         const next = JSON.parse(JSON.stringify(prev)) as EscenarioState;
-        // aplicamos campos recibidos (pueden venir solo algunos)
         for (const key in data) {
           // @ts-ignore
           next[key] = (data as any)[key];
@@ -219,7 +191,7 @@ export const PanelAjustesIndv = forwardRef<
   
   
 
-  const chaosErrorOptions = [ { value: 500, label: '500 Error' }, { value: 503, label: '503 Unavailable' } ];
+
 
   return (
 
@@ -387,12 +359,23 @@ export const PanelAjustesIndv = forwardRef<
                 </div>
 
                 {escenario.chaos_injection.error !== null && (
-                  <StatusCode
-                    label="Error Status Code"
-                    value={escenario.chaos_injection.error}
-                    onChange={(v) => handleStateChange('chaos_injection.error', v)}
-                    options={chaosErrorOptions}
-                  />
+                  <div className="flex items-center gap-2 pl-4">
+                    <label className="text-sm text-gray-600">Código de Error</label>
+                    <input
+                      type="number"
+                      value={escenario.chaos_injection.error}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        if (!Number.isNaN(value)) {
+                          handleStateChange('chaos_injection.error', value);
+                        }
+                      }}
+                      className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                      placeholder="e.g. 500"
+                      min={100}
+                      max={599}
+                    />
+                  </div>
                 )}
 
 
@@ -408,7 +391,7 @@ export const PanelAjustesIndv = forwardRef<
           />
         </div>
 
-        {/* Input solo visible si está activado */}
+
         {escenario.chaos_injection.probability !== null && (
           <div className="flex items-center gap-2 pl-4">
             <label className="text-sm text-gray-600">Probabilidad (%)</label>
