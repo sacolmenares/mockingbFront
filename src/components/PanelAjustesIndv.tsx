@@ -24,16 +24,18 @@ interface AsyncConfig extends BaseConfig {
 
 interface ChaosConfig extends BaseConfig {
   latency: number | null;
-  abort: boolean;
-  error: number | null;
-  probability?: number | null;
+  latencyProbability?: number | string | null;
+  abort: boolean | null;
+  abortProbability?: number | string | null;
+  error: number | string | null;
+  errorProbability?: number | string | null;
 }
 
 
 interface EscenarioState {
   path: string;
   method: string;
-  schema: string;
+  schema: string | undefined | null;
   status_code: number;
   headers: Record<string, string>;
   response: string;
@@ -57,17 +59,18 @@ export const PanelAjustesIndv = forwardRef<
     const [escenario, setEscenario] = useState<EscenarioState>({
         path: initialData?.path || '/api/v1/ruta/del/recurso',
         method: initialData?.method || 'GET',
-        schema: 'schemas/request.json',
+        schema: initialData?.schema ?? null,
         status_code: initialData?.status_code || 200,
         headers: { 'Content-Type': 'application/json' },
         response: initialData?.response || '{"message": "success"}',
         chaos_injection: {
           enabled: false,
           latency: null,
-          abort: false,
+          abort: null,
+          abortProbability: null,
           error: null,
-          probability: null,
-        },
+          errorProbability: null,
+        },        
         async: {
           enabled: false,
           url: 'http://callback.example.com',
@@ -82,26 +85,86 @@ export const PanelAjustesIndv = forwardRef<
 
       //Actualizar los datos 
       useEffect(() => {
-        if (initialData) {
-          setEscenario((prev) => ({
-            ...prev,
-            path: initialData.path ?? prev.path,
-            method: initialData.method ?? prev.method,
-            response: initialData.response ?? prev.response,
-            status_code: initialData.status_code ?? prev.status_code,
-            schema: initialData.schema ?? prev.schema,
-            headers: initialData.headers ?? prev.headers,
-            async: {
+        if (!initialData) return;
+      
+        setEscenario((prev) => {
+          const next = { ...prev };
+      
+          // Datos base
+          next.path = initialData.path ?? prev.path;
+          next.method = initialData.method ?? prev.method;
+          next.response = initialData.response ?? prev.response;
+          next.status_code = initialData.status_code ?? prev.status_code;
+          next.schema = initialData.schema ?? prev.schema;
+          next.headers = initialData.headers ?? prev.headers;
+      
+          //Activa async si existe en el YAML (aun no funciona bien)
+          if (initialData.async) {
+            next.async = {
               ...prev.async,
-              ...(initialData.async || {}),
-            },
-            chaos_injection: {
+              ...initialData.async,
+            };
+          } else {
+            next.async = { ...prev.async, enabled: false };
+          }
+    
+          if (initialData.chaos_injection) {
+            const chaos = initialData.chaos_injection;
+            const hasAnyChaos =
+              chaos.latency !== undefined ||
+              chaos.abort !== undefined ||
+              chaos.error !== undefined ||
+              chaos.latencyProbability !== undefined ||
+              chaos.abortProbability !== undefined ||
+              chaos.errorProbability !== undefined;
+
+            next.chaos_injection = {
+              enabled: hasAnyChaos, 
+              
+              latency:
+                typeof chaos.latency === "number" ? chaos.latency : null,
+              latencyProbability:
+                typeof chaos.latencyProbability === "number" ||
+                typeof chaos.latencyProbability === "string"
+                  ? chaos.latencyProbability
+                  : null,
+
+              abort:
+                chaos.abort === true || typeof chaos.abort === "number"
+                  ? chaos.abort
+                  : null,
+              abortProbability:
+                typeof chaos.abortProbability === "number" ||
+                typeof chaos.abortProbability === "string"
+                  ? chaos.abortProbability
+                  : null,
+
+              error:
+                typeof chaos.error === "number" || typeof chaos.error === "string"
+                  ? chaos.error
+                  : null,
+              errorProbability:
+                typeof chaos.errorProbability === "number" ||
+                typeof chaos.errorProbability === "string"
+                  ? chaos.errorProbability
+                  : null,
+            };
+          } else {
+            next.chaos_injection = {
               ...prev.chaos_injection,
-              ...(initialData.chaos_injection || {}),
-            },
-          }));
-        }
+              enabled: false,
+              latency: null,
+              latencyProbability: null,
+              abort: null,
+              abortProbability: null,
+              error: null,
+              errorProbability: null,
+            };
+          }
+          return next;
+        });
       }, [initialData]);
+      
 
 
       
@@ -145,34 +208,58 @@ export const PanelAjustesIndv = forwardRef<
     
       const clean = JSON.parse(JSON.stringify(escenario));
     
-      if (clean.chaos_injection) {
-        if (!clean.chaos_injection.enabled) {
-          delete clean.chaos_injection;
-        } else {
-          if (clean.chaos_injection.latency === null) delete clean.chaos_injection.latency;
-          if (!clean.chaos_injection.abort) delete clean.chaos_injection.abort;
-          if (clean.chaos_injection.error === null) delete clean.chaos_injection.error;
-          if (
-            clean.chaos_injection.probability === null ||
-            clean.chaos_injection.probability === 0
-          )
-            delete clean.chaos_injection.probability;
-        }
+      const data: any = {
+        method: clean.method,
+        path: clean.path,
+        headers: clean.headers,
+        response: clean.response,
+        status_code: clean.status_code,
+      };
+    
+      if (clean.schema !== null && clean.schema !== undefined) {
+        data.schema = clean.schema;
       }
     
-
-      if (clean.async) {
-        if (!clean.async.enabled) {
-          delete clean.async;
-        } else {
-          clean.async.headers = Object.fromEntries(
+      // --- Solo agregar ASYNC si está habilitado ---
+      if (clean.async?.enabled) {
+        data.async = {
+          method: clean.async.method,
+          url: clean.async.url,
+          body: clean.async.request,
+          headers: Object.fromEntries(
             Object.entries(clean.async.headers || {}).filter(([k, v]) => k && v)
-          );
-        }
+          ),
+          timeout: clean.async.timeout,
+          retries: clean.async.retries,
+          retryDelay: clean.async.retryDelay,
+        };
       }
     
-      return clean;
-    },
+      //Solo se agrega caos si existe en el YAML (aun no funciona bien)
+      if (clean.chaos_injection?.enabled) {
+        data.chaos_injection = {};
+    
+        if (typeof clean.chaos_injection.latency === "number")
+          data.chaos_injection.latency = clean.chaos_injection.latency;
+    
+        if (clean.chaos_injection.latencyProbability)
+          data.chaos_injection.latencyProbability = clean.chaos_injection.latencyProbability;
+    
+        if (clean.chaos_injection.abort !== null && clean.chaos_injection.abort !== undefined)
+          data.chaos_injection.abort = clean.chaos_injection.abort;
+    
+        if (clean.chaos_injection.abortProbability)
+          data.chaos_injection.abortProbability = clean.chaos_injection.abortProbability;
+    
+        if (clean.chaos_injection.error !== null && clean.chaos_injection.error !== undefined)
+          data.chaos_injection.error = clean.chaos_injection.error;
+    
+        if (clean.chaos_injection.errorProbability)
+          data.chaos_injection.errorProbability = clean.chaos_injection.errorProbability;
+      }
+    
+      return data;
+    },    
     
     
     setEscenarioData: (data: Partial<EscenarioState> | null) => {
@@ -194,14 +281,10 @@ export const PanelAjustesIndv = forwardRef<
 
 
   return (
-
-
     <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-md border border-gray-200">
       <div className="space-y-6">
-
       <div className="border-gray-200 pt-4">
           <h3 className="text-md font-bold text-gray-700 mb-3">Headers</h3>
-          
           <div>
 
           {Object.entries(escenario.async.headers).map(([key, value], index) => (
@@ -237,7 +320,7 @@ export const PanelAjustesIndv = forwardRef<
                 }}
                 className="text-red-500 hover:text-red-700 font-bold transition-transform duration-200 hover:scale-110"
               >
-                ✕
+                <X />
               </button>
             </div>
           ))}
@@ -270,17 +353,17 @@ export const PanelAjustesIndv = forwardRef<
             value={escenario.response}
             onChange={(e) => handleStateChange('response', e.target.value)}
             className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
-            rows={3}
+            rows={5}
           />
         </div>
 
         <div>
           <label className="block text-sm font-bold text-gray-600 mb-2">Schema</label>
           <textarea
-            value={escenario.schema}
+            value={escenario.schema ?? ''}
             onChange={(e) => handleStateChange('schema', e.target.value)}
             className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
-            rows={3}
+            rows={5}
             placeholder='Ejemplo: {"type": "object", "properties": { "id": {"type": "number"} }}'
           />
         </div>
@@ -311,16 +394,6 @@ export const PanelAjustesIndv = forwardRef<
             {escenario.chaos_injection.enabled && (
               <div className="pl-4 border-l-2 border-gray-200 space-y-3 pt-4">
 
-              <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-2">Request</label>
-                    <textarea
-                      value={escenario.async.request}
-                      onChange={(e) => handleStateChange('async.request', e.target.value)}
-                      className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
-                      rows={3}
-                    />
-                  </div>
-
                 <div className="flex items-center justify-between">
                   <label className="text-sm text-gray-600">Habilitar Latencia</label>
                   <input
@@ -332,24 +405,107 @@ export const PanelAjustesIndv = forwardRef<
                 </div>
 
                 {escenario.chaos_injection.latency !== null && (
+                  <div className="flex flex-col items-center gap-2 pl-4">
+                    <div className="w-full">
                   <Latency
                     value={escenario.chaos_injection.latency}
                     onChange={(v) => handleStateChange('chaos_injection.latency', v)}
                   />
+                  </div>
+                  <div className="w-full">
+                  <label className="text-sm text-gray-600">Probabilidad (%)</label>
+                  <input
+                    type="number"
+                    value={escenario.chaos_injection.latencyProbability ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || (/^\d*$/.test(value) && Number(value) >= 0 && Number(value) <= 100)) {
+                        handleStateChange('chaos_injection.latencyProbability', value);
+                      }
+                    }}
+                    onBlur={() => {
+                      const numValue = Number(escenario.chaos_injection.latencyProbability);
+                      if (!Number.isNaN(numValue)) {
+                        handleStateChange('chaos_injection.latencyProbability', numValue);
+                      }
+                    }}
+                    className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                    placeholder="0-100"
+                  />
+                  </div>
+                  </div>
                 )}
 
                 <div className="flex items-center justify-between">
                   <label className="text-sm text-gray-600">Habilitar Abort</label>
                   <input
                     type="checkbox"
-                    checked={escenario.chaos_injection.abort}
-                    onChange={(e) => handleStateChange('chaos_injection.abort', e.target.checked)}
+                    checked={escenario.chaos_injection.abort !== null}
+                    onChange={(e) => handleStateChange('chaos_injection.abort', e.target.checked ? true : null)}
                     className="h-5 w-5 rounded accent-green-600"
                   />
                 </div>
+                {escenario.chaos_injection.abort == true && (
+                <div className="flex flex-col items-center gap-2 pl-4">
+                  <div className="w-full">
+                    <label className="text-sm text-gray-600">Código</label>
+                    <input
+                      type="number"
+                      value={
+                        typeof escenario.chaos_injection.abort === 'number' ||
+                        typeof escenario.chaos_injection.abort === 'string'
+                          ? escenario.chaos_injection.abort
+                          : ''
+                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') {
+                          handleStateChange('chaos_injection.abort', null);
+                          return;
+                        }
+                        const numValue = Number(value);
+                        if (!Number.isNaN(numValue)) {
+                          handleStateChange('chaos_injection.abort', numValue);
+                        }
+                      }}
+                      className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                      placeholder="ej 500"
+                      min={100}
+                      max={599}
+                    />
+                  </div>
+
+
+                  <div className="w-full">
+                  <label className="text-sm text-gray-600">Probabilidad (%)</label>
+                  <input
+                    type="number"
+                    value={escenario.chaos_injection.abortProbability ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || (/^\d*$/.test(value) && Number(value) >= 0 && Number(value) <= 100)) {
+                        handleStateChange('chaos_injection.abortProbability', value);
+                      }
+                    }}
+                    onBlur={() => {
+                      const numValue = Number(escenario.chaos_injection.abortProbability);
+                      if (!Number.isNaN(numValue)) {
+                        handleStateChange('chaos_injection.abortProbability', numValue);
+                      }
+                    }}
+                    className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                    placeholder="0-100"
+                  />
+                  </div>
+                </div>
+              )}
+
+                
+
+
 
                 <div className="flex items-center justify-between">
-                  <label className="text-sm text-gray-600">Habilitar Error Code</label>
+                  <label className="text-sm text-gray-600">Habilitar Error</label>
                   <input
                     type="checkbox"
                     checked={escenario.chaos_injection.error !== null}
@@ -357,60 +513,63 @@ export const PanelAjustesIndv = forwardRef<
                     className="h-5 w-5 rounded accent-green-600"
                   />
                 </div>
-
                 {escenario.chaos_injection.error !== null && (
-                  <div className="flex items-center gap-2 pl-4">
+                  <div className="flex flex-col items-center gap-2 pl-4">
+                    <div className="w-full">
                     <label className="text-sm text-gray-600">Código de Error</label>
                     <input
                       type="number"
                       value={escenario.chaos_injection.error}
                       onChange={(e) => {
-                        const value = Number(e.target.value);
-                        if (!Number.isNaN(value)) {
-                          handleStateChange('chaos_injection.error', value);
+                        const value = e.target.value;
+                        if (value === '') {
+                          handleStateChange('chaos_injection.error', null);
+                          return;
                         }
-                      }}
+                        const numValue = Number(value);
+                        if (!Number.isNaN(numValue)) {
+                          handleStateChange('chaos_injection.error', numValue);
+                        }
+                      }}                      
                       className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
                       placeholder="e.g. 500"
                       min={100}
                       max={599}
                     />
+                    </div>
+                    <div className="w-full">
+                  <label className="text-sm text-gray-600">Probabilidad (%)</label>
+                  <input
+                    type="number"
+                    value={escenario.chaos_injection.errorProbability ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || (/^\d*$/.test(value) && Number(value) >= 0 && Number(value) <= 100)) {
+                        handleStateChange('chaos_injection.errorProbability', value);
+                      }
+                    }}
+                    onBlur={() => {
+                      const numValue = Number(escenario.chaos_injection.errorProbability);
+                      if (!Number.isNaN(numValue)) {
+                        handleStateChange('chaos_injection.errorProbability', numValue);
+                      }
+                    }}
+                    className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                    placeholder="0-100"
+                  />
+                  </div>
+
+                    <div className="w-full">
+                    <label className="text-sm font-bold text-gray-600 mb-2">Response</label>
+                    <textarea
+                      value={escenario.async.request}
+                      onChange={(e) => handleStateChange('async.request', e.target.value)}
+                      className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                      rows={5}
+                    />
+                    </div>
                   </div>
                 )}
-
-
-        <div className="flex items-center justify-between">
-          <label className="text-sm text-gray-600">Habilitar Probabilidad</label>
-          <input
-            type="checkbox"
-            checked={escenario.chaos_injection.probability !== null}
-            onChange={(e) =>
-              handleStateChange('chaos_injection.probability', e.target.checked ? 0 : null)
-            }
-            className="h-5 w-5 rounded accent-green-600"
-          />
-        </div>
-
-
-        {escenario.chaos_injection.probability !== null && (
-          <div className="flex items-center gap-2 pl-4">
-            <label className="text-sm text-gray-600">Probabilidad (%)</label>
-            <input
-              type="number"
-              value={escenario.chaos_injection.probability}
-              onChange={(e) => {
-                const value = Number(e.target.value);
-                if (value >= 0 && value <= 100) {
-                  handleStateChange('chaos_injection.probability', value);
-                }
-              }}
-              className="w-24 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
-              placeholder="0–100"
-              min={0}
-              max={100}
-            />
-          </div>
-        )}
 
 
               </div>
@@ -426,18 +585,16 @@ export const PanelAjustesIndv = forwardRef<
           </div>
 
           {escenario.async.enabled && (
-  <div className="pl-4 border-l-2 border-gray-200 space-y-4 pt-4">
+        <div className="pl-4 border-l-2 border-gray-200 space-y-4 pt-4">
 
-<EndpointInput
+        <EndpointInput
           method={escenario.method}
           path={escenario.path}
           onMethodChange={(v) => handleStateChange('method', v)}
           onPathChange={handlePathChange}
         />
-
-    
-<div>
-      <label className="block text-sm font-bold text-gray-600 mb-2">Request</label>
+    <div>
+      <label className="block text-sm font-bold text-gray-600 mb-2">Response</label>
       <textarea
         value={escenario.async.request}
         onChange={(e) => handleStateChange('async.request', e.target.value)}
@@ -489,24 +646,24 @@ export const PanelAjustesIndv = forwardRef<
           ))}
 
 
-<button
-  onClick={() => {
-    const newHeaders = { ...escenario.async.headers };
+          <button
+            onClick={() => {
+              const newHeaders = { ...escenario.async.headers };
 
-    const uniqueKey = `header-${Date.now()}-${Object.keys(newHeaders).length}`;
-    newHeaders[uniqueKey] = '';
+              const uniqueKey = `header-${Date.now()}-${Object.keys(newHeaders).length}`;
+              newHeaders[uniqueKey] = '';
 
-    handleStateChange('async.headers', newHeaders);
-  }}
-  className="text-sm text-blue-600 font-semibold mt-2 hover:underline"
->
-  + Agregar Header
-</button>
-      </div>
-     </div>
-)}
-      </div>
-      </div>
-      </div>
-  );
-});
+              handleStateChange('async.headers', newHeaders);
+            }}
+            className="text-sm text-blue-600 font-semibold mt-2 hover:underline"
+          >
+            + Agregar Header
+          </button>
+                </div>
+              </div>
+          )}
+                </div>
+                </div>
+                </div>
+            );
+          });

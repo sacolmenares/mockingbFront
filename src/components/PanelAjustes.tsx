@@ -7,7 +7,7 @@ import YAML from "yaml";
 import { CircleX } from 'lucide-react';
 
 const defaultServerConfig: ServerConfig = {
-  listen: "0.0.0.0:8080",
+  listen: 8080,
   logger: "default",
   name: "Example-server",
   logger_path: "/var/log/Example.log",
@@ -19,7 +19,7 @@ interface PanelAjustesProps {
 }
 
 interface ServerConfig {
-  listen: string;
+  listen: number;
   logger: string;
   name: string;
   logger_path: string;
@@ -68,9 +68,12 @@ const getServerConfigFromAPI = async (serverName: string) => {
 export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelAjustesProps) {
   const [serverConfig, setServerConfig] = useState<ServerConfig>(defaultServerConfig);
 
-  const handleServerConfigChange = (field: keyof ServerConfig, value: string) => {
-    setServerConfig(prevState => ({ ...prevState, [field]: value }));
-  };
+  const handleServerConfigChange = (field: keyof ServerConfig, value: string | number) => {
+    setServerConfig(prevState => {
+        const newValue = field === 'listen' ? Number(value) : value;
+        return ({ ...prevState, [field]: newValue as any }); 
+    });
+};
   
   const [escenarios, setEscenarios] = useState<Escenario[]>([{ id: Date.now() }]);
   const panelRefs = useRef<{ [key: number]: PanelAjustesIndvRef | null }>({});
@@ -500,7 +503,20 @@ if (originalLength > locationsData.length) {
           </div>
           <div>
             <label className="text-sm font-bold text-gray-600">Listen</label>
-            <input type="text" value={serverConfig.listen} onChange={(e) => handleServerConfigChange('listen', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <input type="text" 
+            value={serverConfig.listen} 
+            onChange={(e) => {
+              const value = e.target.value;
+              const numericValue = Number(value);
+        
+   
+              if (!isNaN(numericValue)) {
+                handleServerConfigChange('listen', numericValue.toString()); 
+              } else if (value === '') {
+                handleServerConfigChange('listen', '');
+              }
+            }}
+             className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
           </div>
           <div>
             <label className="text-sm font-bold text-gray-600">Version</label>
@@ -521,20 +537,6 @@ if (originalLength > locationsData.length) {
         <h1 className="text-3xl font-bold text-gray-900">
           Gestión de endpoints
         </h1>
-
-      {/*  Botón para aplicar a todos los escenarios, REVISAR
-        <div className="pt-6 flex justify-end">
-            <Button
-                variant="ghost"
-                className={`px-6 py-2 border border-blue-600 text-blue-600 bg-transparent hover:bg-blue-600 hover:text-white transition-all duration-200 ${
-                  reseteando ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                onClick={aplicarTodosLosEscenarios}
-                disabled={reseteando}>
-                {reseteando ? 'RESETEANDO...' : 'APLICAR TODOS'}
-            </Button>
-        </div>
-      */}
       </div>
 
       {reseteando && (

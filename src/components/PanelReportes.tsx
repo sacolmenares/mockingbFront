@@ -40,6 +40,7 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
     "request_endpoint",
     "request_method",
     "response_status_code",
+    "request_body",
     "response_body",
   ]);
   const [mostrarMensaje, setMostrarMensaje] = useState(false);
@@ -57,7 +58,7 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
   };
 
   useEffect(() => {
-    fetchReportes(); // ✅ Se ejecuta apenas se abre el panel
+    fetchReportes();
   }, []);
 
   // Mostrar mensaje si hay nuevos reportes
@@ -99,8 +100,6 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
   return (
     <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-7xl mx-auto animate-fadeIn">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Historial de reportes</h1>
-
-      {/* Barra de búsqueda grande arriba */}
       <div className="w-full mb-5">
         <input
           type="text"
@@ -111,7 +110,7 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
         />
       </div>
 
-      {/* Botones en una sola línea */}
+
       <div className="flex flex-nowrap overflow-x-auto gap-2 pb-3 mb-4">
         {[
           "uuid",
@@ -139,7 +138,7 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
         ))}
       </div>
 
-      {/* Mensaje de confirmación */}
+
       {mostrarMensaje && reportesCount > 0 && (
         <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg animate-fadeIn">
           <p className="font-medium text-lg">¡Se aplicaron {reportesCount} ajuste(s) exitosamente!</p>
@@ -147,7 +146,7 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
         </div>
       )}
 
-      {/* Tabla */}
+
       <div className="overflow-x-auto mt-6 bg-white rounded-2xl shadow-lg">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
