@@ -329,6 +329,7 @@ const refreshDataAfterSave = (serverName: string) =>
 
 
   return (
+    
     <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
     <div className="w-full flex items-center justify-between mt-4">
         <h2 className="text-2xl font-bold text-gray-900">
@@ -489,8 +490,8 @@ if (originalLength > locationsData.length) {
         } else {
           setServerConfig(defaultServerConfig);
         }
-      }}
-    />
+        }}
+      />
 
 
 

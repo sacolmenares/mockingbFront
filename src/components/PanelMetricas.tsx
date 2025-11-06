@@ -1,5 +1,5 @@
 
-export function Metricas() {
+export function PanelMetricas() {
   return (
     <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl mx-auto">
     <h1 className="text-3xl font-bold text-gray-900 mb-8">Reportes</h1>

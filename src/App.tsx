@@ -1,28 +1,32 @@
-import { useState} from 'react';
 import SideBar from './layouts/SideBar.tsx'; 
 import { PageHeader } from './layouts/PageHeader.tsx';
-import { PanelAjustes } from './components/PanelAjustes.tsx';
-import { Metricas } from './components/PanelMetricas.tsx';
-import { PanelReportes } from './components/PanelReportes.tsx';
-
+import AjustesPage from "./pages/ajustes.tsx";
+import MetricasPage from "./pages/metricas.tsx"
+import ReportesPage from "./pages/reportes.tsx";
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
+//import { useState } from 'react';
 
 export default function App() {
-  const [activeItem, setActiveItem] = useState('Ajustes');
-  const [reportesCount, setReportesCount] = useState(0);
 
   return (
+    <BrowserRouter>
     <div className="h-screen flex flex-col text-white" >
       <PageHeader/>
       <div className="flex flex-1 overflow-hidden">
-        <SideBar activeItem={activeItem} setActiveItem={setActiveItem} reportesCount={reportesCount} />
+        <SideBar/>
+        {/** OJO : Da error porque hay que quitar el contador de notificaciones de reportes en sidebar */}
           <main className="flex-1 p-10 overflow-y-auto ">
-          {activeItem === 'Ajustes' && <PanelAjustes onAjustesAplicados={setReportesCount} />}
-          {activeItem === 'Métricas' && <Metricas />}
-          {activeItem === 'Reportes' && <PanelReportes reportesCount={reportesCount} onReportesVistos={() => setReportesCount(0)} />}
+            <Routes>
+              {/** Ruta principal */}
+              <Route path="/" element={<Navigate to="/ajustes" replace /> } />
+
+              <Route path="/ajustes" element={<AjustesPage />} />
+              <Route path="/metricas" element={<MetricasPage />} />
+              <Route path="/reportes" element={<ReportesPage />} />
+            </Routes>
         </main>
       </div>
     </div>
-    
+    </BrowserRouter>
   );
 }
-

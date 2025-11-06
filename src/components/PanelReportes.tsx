@@ -24,12 +24,9 @@ interface Reporte {
   [key: string]: any;
 }
 
-interface PanelReportesProps {
-  reportesCount: number;
-  onReportesVistos: () => void;
-}
 
-export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportesProps) {
+
+export function PanelReportes() {
   const [reportes, setReportes] = useState<Reporte[]>([]);
   const [filtro, setFiltro] = useState("");
   const [columnasVisibles, setColumnasVisibles] = useState<string[]>([
@@ -43,7 +40,7 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
     "request_body",
     "response_body",
   ]);
-  const [mostrarMensaje, setMostrarMensaje] = useState(false);
+
 
   // Obtener datos de la API
   const fetchReportes = async () => {
@@ -61,29 +58,6 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
     fetchReportes();
   }, []);
 
-  // Mostrar mensaje si hay nuevos reportes
-  useEffect(() => {
-    if (reportesCount > 0) {
-      setMostrarMensaje(true);
-      const timer = setTimeout(() => {
-        onReportesVistos();
-        setMostrarMensaje(false);
-      }, 5000);
-
-      const handleVisibilityChange = () => {
-        if (document.hidden) {
-          onReportesVistos();
-          setMostrarMensaje(false);
-        }
-      };
-      document.addEventListener("visibilitychange", handleVisibilityChange);
-
-      return () => {
-        clearTimeout(timer);
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
-      };
-    }
-  }, [reportesCount, onReportesVistos]);
 
   // Filtrado de datos
   const reportesFiltrados = reportes.filter(r =>
@@ -138,13 +112,6 @@ export function PanelReportes({ reportesCount, onReportesVistos }: PanelReportes
         ))}
       </div>
 
-
-      {mostrarMensaje && reportesCount > 0 && (
-        <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg animate-fadeIn">
-          <p className="font-medium text-lg">¡Se aplicaron {reportesCount} ajuste(s) exitosamente!</p>
-          <p className="text-sm mt-1">Los reportes correspondientes estarán disponibles próximamente.</p>
-        </div>
-      )}
 
 
       <div className="overflow-x-auto mt-6 bg-white rounded-2xl shadow-lg">
