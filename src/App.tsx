@@ -4,17 +4,16 @@ import AjustesPage from "./pages/ajustes.tsx";
 import MetricasPage from "./pages/metricas.tsx"
 import ReportesPage from "./pages/reportes.tsx";
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
-//import { useState } from 'react';
+import { useState } from 'react';
 
-export default function App() {
+function AppContent() {
+  const [activeItem, setActiveItem] = useState('Ajustes');
 
   return (
-    <BrowserRouter>
     <div className="h-screen flex flex-col text-white" >
       <PageHeader/>
       <div className="flex flex-1 overflow-hidden">
-        <SideBar/>
-        {/** OJO : Da error porque hay que quitar el contador de notificaciones de reportes en sidebar */}
+      <SideBar activeItem={activeItem} setActiveItem={setActiveItem} />
           <main className="flex-1 p-10 overflow-y-auto ">
             <Routes>
               {/** Ruta principal */}
@@ -27,6 +26,13 @@ export default function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 }

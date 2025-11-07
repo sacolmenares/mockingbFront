@@ -29,6 +29,8 @@ interface Reporte {
 export function PanelReportes() {
   const [reportes, setReportes] = useState<Reporte[]>([]);
   const [filtro, setFiltro] = useState("");
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [porPagina] = useState(10); // número de filas por página
   const [columnasVisibles, setColumnasVisibles] = useState<string[]>([
     "uuid",
     "recepcion_id",
@@ -48,11 +50,20 @@ export function PanelReportes() {
       const res = await fetch("/api/mock/data"); // Cambia a tu endpoint real
       if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
       const data = await res.json();
-      setReportes(data);
+  
+      // ✅ Agregamos esta validación para evitar el error
+      if (Array.isArray(data)) {
+        setReportes(data);
+      } else {
+        console.warn("El endpoint no devolvió un arreglo. Se usará vacío.");
+        setReportes([]); // evita que reportes sea null
+      }
     } catch (error) {
       console.error("Error al obtener reportes:", error);
+      setReportes([]); // también evita el error si falla el fetch
     }
   };
+  
 
   useEffect(() => {
     fetchReportes();
@@ -60,9 +71,16 @@ export function PanelReportes() {
 
 
   // Filtrado de datos
-  const reportesFiltrados = reportes.filter(r =>
+  const reportesFiltrados = (reportes || []).filter(r =>
     columnasVisibles.some(c => r[c]?.toString().toLowerCase().includes(filtro.toLowerCase()))
   );
+
+  const indiceUltimo = paginaActual * porPagina;
+  const indicePrimero = indiceUltimo - porPagina;
+  const reportesPagina = reportesFiltrados.slice(indicePrimero, indiceUltimo);
+  const totalPaginas = Math.ceil(reportesFiltrados.length / porPagina);
+
+  
 
   // Alternar visibilidad de columnas
   const toggleColumna = (col: string) => {
@@ -129,7 +147,7 @@ export function PanelReportes() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {reportesFiltrados.map((reporte, i) => (
+          {reportesPagina.map((reporte, i) => (
               <tr key={i} className="hover:bg-gray-100 transition-all">
                 {columnasVisibles.map(col => (
                   <td key={col} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -149,6 +167,27 @@ export function PanelReportes() {
             )}
           </tbody>
         </table>
+              <div className="flex justify-center items-center mt-4 gap-2">
+        <button
+          onClick={() => setPaginaActual(prev => Math.max(prev - 1, 1))}
+          disabled={paginaActual === 1}
+          className="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg disabled:opacity-50"
+        >
+          ← Anterior
+        </button>
+
+        <span className="text-gray-700 text-sm">
+          Página {paginaActual} de {totalPaginas}
+        </span>
+
+        <button
+          onClick={() => setPaginaActual(prev => Math.min(prev + 1, totalPaginas))}
+          disabled={paginaActual === totalPaginas}
+          className="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg disabled:opacity-50"
+        >
+          Siguiente →
+        </button>
+      </div>
       </div>
     </div>
   );
