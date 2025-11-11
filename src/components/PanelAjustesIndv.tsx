@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 import { EscenarioStateSchema } from "../validations/endpoint.squema";
 import { FieldWithError } from "./FieldWithError.tsx";
 import type { Location as LocationBackend } from "../models/backendModels";
-import { mapBackendToUI, mapUIToBackend } from "../mapeo/mapeoDatos.ts";
+import { mapBackendToUI } from "../mapeo/mapeoDatos.ts";
 import type { EscenarioUI } from "../types/escenarioUI.ts";
 
 
@@ -210,6 +210,76 @@ export const PanelAjustesIndv = forwardRef<
   };
   
 
+// Función que prepara datos limpios para backend
+function prepareEscenarioForBackend(escenario: EscenarioUI) {
+  const data: any = {
+    path: escenario.path,
+    method: escenario.method,
+    status_code: escenario.statusCode, 
+    response: escenario.response,
+    schema: escenario.schema ?? "",
+  };
+
+  // Headers solo si existen
+  if (escenario.headers && Object.keys(escenario.headers).length > 0) {
+    data.headers = escenario.headers;
+  }
+
+  // Async solo si está habilitado
+  if (escenario.async?.enabled) {
+    data.async = {
+      url: escenario.async.url,
+      method: escenario.async.method,
+      timeout: escenario.async.timeout,
+      retries: escenario.async.retries,
+      retryDelay: escenario.async.retryDelay,
+    };
+
+    if (escenario.async.headers && Object.keys(escenario.async.headers).length > 0) {
+      data.async.headers = escenario.async.headers;
+    }
+
+    if (escenario.async.body) {
+      data.async.body = escenario.async.body;
+    }
+  }
+
+  // Chaos Injection solo si está habilitado
+  if (escenario.chaosInjection?.enabled) {
+    const ci: any = {};
+
+    if (escenario.chaosInjection.latency !== null && escenario.chaosInjection.latency !== undefined) {
+      ci.latency = {
+        time: escenario.chaosInjection.latency,
+        probability: escenario.chaosInjection.latencyProbability ?? 0,
+      };
+    }
+
+    if (escenario.chaosInjection.abort !== null && escenario.chaosInjection.abort !== undefined) {
+      ci.abort = {
+        code: typeof escenario.chaosInjection.abort === 'boolean' ? 500 : escenario.chaosInjection.abort,
+        probability: escenario.chaosInjection.abortProbability ?? 0,
+      };
+    }
+
+    if (escenario.chaosInjection.error !== null && escenario.chaosInjection.error !== undefined) {
+      ci.error = {
+        code: escenario.chaosInjection.error,
+        probability: escenario.chaosInjection.errorProbability ?? 0,
+        response: escenario.response,
+      };
+    }
+
+    // Solo agrega chaosInjection si tiene algo
+    if (Object.keys(ci).length > 0) {
+      data.chaosInjection = ci;
+    }
+  }
+
+  return data;
+}
+
+
 
   useImperativeHandle(ref, () => ({
     getEscenarioData: () => {
@@ -220,22 +290,16 @@ export const PanelAjustesIndv = forwardRef<
       }
     
       try {
-        // Convierte los datos del UI al formato que el backend espera (models.go)
-        try {
-          JSON.parse(escenario.response);
-        } catch (e) {
-          console.error("El campo 'response' no es un JSON válido:", escenario.response);
-          return null;
-        }
-        const data = mapUIToBackend(escenario as any);
-        return data;
-      } catch (error) {
-        console.error("Error al convertir los datos para el backend:", error);
+        JSON.parse(escenario.response); // validar JSON
+      } catch (e) {
+        console.error("El campo 'response' no es un JSON válido:", escenario.response);
         return null;
       }
-    },
-       
     
+      const data = prepareEscenarioForBackend(escenario);
+      return data;
+    },
+
     
     setEscenarioData: (data: Partial<EscenarioUI> | null) => {
       if (!data) return;
