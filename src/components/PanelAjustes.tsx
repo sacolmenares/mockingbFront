@@ -5,6 +5,7 @@ import { Button } from "./Button";
 import { Dropdown } from "./Dropdown";
 import YAML from "yaml";
 import { CircleX } from 'lucide-react';
+import { mapBackendToUI } from "../mapeo/mapeoDatos";
 
 const defaultServerConfig: ServerConfig = {
   listen: 8080,
@@ -407,9 +408,10 @@ for (let i = 0; i < locationsData.length; i++) {
     doc.setIn(["http", "servers", 0, "location", i, "schema"], orig.schema);
   }
 
-  // status_code 
-  if (loc.status_code !== undefined) {
-    doc.setIn(["http", "servers", 0, "location", i, "status_code"], loc.status_code);
+  // status_code - manejar tanto statusCode (camelCase) como status_code (snake_case)
+  const statusCode = loc.statusCode !== undefined ? loc.statusCode : loc.status_code;
+  if (statusCode !== undefined) {
+    doc.setIn(["http", "servers", 0, "location", i, "status_code"], statusCode);
   }
 
   // chaos_injection 
@@ -575,7 +577,7 @@ if (originalLength > locationsData.length) {
             ref={(ref) => {
               panelRefs.current[escenario.id] = ref;
             }}
-            initialData={escenario.data} 
+            initialData={escenario.data ? mapBackendToUI(escenario.data) : undefined} 
             selectedServer={selectedServer}
             />
         </div>

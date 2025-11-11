@@ -1,29 +1,24 @@
 import React from 'react';
-import {Settings, BarChart3 , FileClock} from 'lucide-react'
-import { Button } from "../components/Button"
+import { Settings, BarChart3, FileClock } from 'lucide-react';
+import { Button } from "../components/Button";
 import { useNavigate, useLocation } from 'react-router-dom';
 
-interface SidebarProps {
-  activeItem: string;
-  setActiveItem: (item: string) => void;
-}
 
-const Sidebar: React.FC<SidebarProps> = ({ activeItem, setActiveItem }) => {
+const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
   const menuItems = [
-    { name: 'Ajustes', path: '/ajustes' },
-    { name: 'Métricas', path: '/metricas' },
-    { name: 'Reportes', path: '/reportes' }
+    { name: 'Ajustes', path: '/ajustes', icon: <Settings /> },
+    { name: 'Métricas', path: '/metricas', icon: <BarChart3 /> },
+    { name: 'Reportes', path: '/reportes', icon: <FileClock /> }
   ];
 
-  const handleNavigation = (itemName: string, path: string) => {
-    setActiveItem(itemName);
+  const handleNavigation = (path: string) => {
     navigate(path);
   };
 
-  // Determinar el item activo basándose en la ruta actual
+
   const currentItem = menuItems.find(item => location.pathname === item.path);
 
   return (
@@ -34,16 +29,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, setActiveItem }) => {
             <li key={item.name} className="mb-2">
               <Button
                 type="button"
-                onClick={() => handleNavigation(item.name, item.path)}
-                active={activeItem === item.name || (currentItem?.name === item.name)}
+                onClick={() => handleNavigation(item.path)}
+                active={currentItem?.name === item.name}
                 variant="ghost"
                 className="relative"
               >
-                {item.name === 'Ajustes' && <Settings />}
-                {item.name === 'Reportes' && <FileClock />}
-                {item.name === 'Métricas' && <BarChart3 />}
-
-                <span className="font-medium">{item.name}</span> 
+                {item.icon}
+                <span className="font-medium">{item.name}</span>
               </Button>
             </li>
           ))}
