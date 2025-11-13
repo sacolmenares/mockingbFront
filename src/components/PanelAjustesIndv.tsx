@@ -47,22 +47,8 @@ export const PanelAjustesIndv = forwardRef<
         statusCode: (initialData as any)?.statusCode || (initialData as any)?.status_code || 200,
         headers: initialData?.headers || { 'Content-Type': 'application/json' },
         response: initialData?.response || '{"message": "success"}',
-        chaosInjection: {
-          enabled: false,
-          latency: null,
-          abort: null,
-          error: null,
-        },        
-        async: {
-          enabled: false,
-          url: 'http://callback.example.com',
-          method: 'POST',
-          timeout: 5000,
-          retries: 3,
-          retryDelay: 1000,
-          body: '{"data": "example"}',
-          headers: { "Content-Type": "application/json" },
-        },
+        chaosInjection: undefined,        
+        async: undefined, //Para que no active por default async
       });
 
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -71,16 +57,8 @@ export const PanelAjustesIndv = forwardRef<
       //Actualizar los datos 
       useEffect(() => {
         if (!initialData) return;
-        try {
-          if ('statusCode' in initialData || 'status_code' in initialData) {
-            const mapped = mapBackendToUI(initialData as any);
-            setEscenario(mapped);
-          } else {
-            setEscenario(prev => ({ ...prev, ...initialData }));
-          }
-        } catch (error) {
-          console.error("Error al mapear datos del backend:", error);
-        }
+        setEscenario(initialData as EscenarioUI);
+
       }, [initialData]);
       
       
@@ -103,6 +81,7 @@ export const PanelAjustesIndv = forwardRef<
           latency: null,
           abort: null,
           error: null,
+          errorResponse: null,
         };
       }
       if (keys[0] === 'async' && !newState.async) {
@@ -122,7 +101,7 @@ export const PanelAjustesIndv = forwardRef<
       for (let i = 0; i < keys.length - 1; i++) {
         if (!current[keys[i]]) {
           if (keys[i] === 'chaosInjection') {
-            current[keys[i]] = { enabled: false, latency: null, abort: null, error: null };
+            current[keys[i]] = { enabled: false, latency: null, abort: null, error: null, errorResponse: null };
           } else if (keys[i] === 'async') {
             current[keys[i]] = { enabled: false, url: '', method: 'POST', timeout: 5000, retries: 3, retryDelay: 1000, body: '', headers: {} };
           } else {
@@ -217,10 +196,14 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
     method: escenario.method,
     status_code: escenario.statusCode, 
     response: escenario.response,
-    schema: escenario.schema ?? "",
   };
 
-  // Headers solo si existen
+  // Schema si existe
+  if (escenario.schema) {
+    data.schema = escenario.schema;
+  }
+
+  // Header si existe
   if (escenario.headers && Object.keys(escenario.headers).length > 0) {
     data.headers = escenario.headers;
   }
@@ -266,7 +249,7 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
       ci.error = {
         code: escenario.chaosInjection.error,
         probability: escenario.chaosInjection.errorProbability ?? 0,
-        response: escenario.response,
+        response: escenario.chaosInjection.errorResponse ?? "",
       };
     }
 
@@ -322,39 +305,40 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
   return (
     <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-md border border-gray-200">
       <div className="space-y-6">
+
       <div className="border-gray-200 pt-4">
-          <h3 className="text-md font-bold text-gray-700 mb-3">Headers</h3>
+          <h3 className="text-md font-bold text-gray-700 mb-3">Headers</h3> {/** Headers princiapl */}
           <div>
-          {Object.entries((escenario.async?.headers || {})).map(([key, value], index) => (
+          {Object.entries((escenario.headers || {})).map(([key, value], index) => (
             <div key={index} className="flex items-center gap-2 mb-2 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
               <input
                 type="text"
                 value={key.startsWith('header-') ? '' : key}
                 onChange={(e) => {
                   const newKey = e.target.value || `header-${Date.now()}`;
-                  const newHeaders = { ...(escenario.async?.headers || {}) };
+                  const newHeaders = { ...(escenario.headers || {}) };
                   delete newHeaders[key];
                   newHeaders[newKey] = value;
-                  handleStateChange('async.headers', newHeaders);
+                  handleStateChange('headers', newHeaders);
                 }}
                 className="w-1/3 bg-gray-100 p-2 rounded-lg text-sm"
-                placeholder="Header name"
+                placeholder="Nombre"
               />
               <input
                 type="text"
                 value={value}
                 onChange={(e) => {
-                  const newHeaders = { ...(escenario.async?.headers || {}), [key]: e.target.value };
-                  handleStateChange('async.headers', newHeaders);
+                  const newHeaders = { ...(escenario.headers || {}), [key]: e.target.value };
+                  handleStateChange('headers', newHeaders);
                 }}
                 className="w-2/3 bg-gray-100 p-2 rounded-lg text-sm"
-                placeholder="Header value"
+                placeholder=" "
               />
               <button
                 onClick={() => {
-                  const newHeaders = { ...(escenario.async?.headers || {}) };
+                  const newHeaders = { ...(escenario.headers || {}) };
                   delete newHeaders[key];
-                  handleStateChange('async.headers', newHeaders);
+                  handleStateChange('headers', newHeaders);
                 }}
                 className="text-red-500 hover:text-red-700 font-bold transition-transform duration-200 hover:scale-110"
               >
@@ -365,8 +349,8 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
 
           <button
             onClick={() => {
-              const newHeaders = { ...(escenario.async?.headers || {}), [`header-${Date.now()}`]: '' };
-              handleStateChange('async.headers', newHeaders);
+              const newHeaders = { ...(escenario.headers || {}), [`header-${Date.now()}`]: '' };
+              handleStateChange('headers', newHeaders);
             }}
             className="text-sm text-blue-600 font-semibold mt-2 hover:underline transition-all duration-300 hover:text-blue-800"
           >
@@ -598,8 +582,8 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
                     <div className="w-full">
                     <label className="text-sm font-bold text-gray-600 mb-2">Response</label>
                     <textarea
-                      value={escenario.async?.body || ''}
-                      onChange={(e) => handleStateChange('async.body', e.target.value)}
+                      value={escenario.chaosInjection?.errorResponse || ''}
+                      onChange={(e) => handleStateChange('chaosInjection.errorResponse', e.target.value)}
                       className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
                       rows={5}
                     />
@@ -624,10 +608,10 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
         <div className="pl-4 border-l-2 border-gray-200 space-y-4 pt-4">
 
         <EndpointInput
-          method={escenario.method}
-          path={escenario.path}
-          onMethodChange={(v) => handleStateChange('method', v)}
-          onPathChange={handlePathChange}
+          method={escenario.async?.method || 'POST'} 
+          path={escenario.async?.url || ''}         
+          onMethodChange={(v) => handleStateChange('async.method', v)} 
+          onPathChange={(v) => handleStateChange('async.url', v)}    
         />
     <div>
       <label className="block text-sm font-bold text-gray-600 mb-2">Response</label>
@@ -642,7 +626,6 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
 
     <div>
       <label className="block text-sm font-bold text-gray-600 mb-2">Headers</label>
-
       {Object.entries(escenario.async?.headers || {}).map(([key, value], index) => (
             <div key={index} className="flex items-center gap-2 mb-2 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
               <input
@@ -656,7 +639,7 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
                   handleStateChange('async.headers', newHeaders);
                 }}
                 className="w-1/3 bg-gray-100 p-2 rounded-lg text-sm"
-                placeholder="Header name"
+                placeholder="Nombre"
               />
               <input
                 type="text"
@@ -666,7 +649,7 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
                   handleStateChange('async.headers', newHeaders);
                 }}
                 className="w-2/3 bg-gray-100 p-2 rounded-lg text-sm"
-                placeholder="Header value"
+                placeholder=" "
               />
               <button
                 onClick={() => {
@@ -695,7 +678,7 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
           >
             + Agregar Header
           </button>
-                </div>
+    </div>
               </div>
           )}
                 </div>

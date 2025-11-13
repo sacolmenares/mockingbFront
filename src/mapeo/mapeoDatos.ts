@@ -25,7 +25,7 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
           body: location.async.body ?? "",
           headers: location.async.headers ?? { "Content-Type": "application/json" },
         }
-      : { enabled: false } as any,
+      : undefined,
 
     chaosInjection: location.chaosInjection
       ? {
@@ -36,29 +36,21 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
           abortProbability: location.chaosInjection.abort?.probability ?? null,
           error: location.chaosInjection.error?.code ?? null,
           errorProbability: location.chaosInjection.error?.probability ?? null,
+          errorResponse: location.chaosInjection.error?.response ?? null,
         }
-      : { enabled: false } as any,
+      : undefined,
   };
 }
 
 
 //Mapea del UI al backend 
 export function mapUIToBackend(escenario: EscenarioUI): Location {
-    let safeResponse = escenario.response;
-  
-    // Intentar asegurar que response sea un JSON string válido
-    try {
-      const parsed = JSON.parse(escenario.response);
-      safeResponse = JSON.stringify(parsed, null, 2);
-    } catch {
-      // Si no es JSON válido, mantener el texto tal cual
-      safeResponse = escenario.response;
-    }
+    let safeResponse = escenario.response;    
   
     return {
       path: escenario.path,
       method: escenario.method,
-      schema: escenario.schema ?? "",
+      //schema: escenario.schema ?? "",
       response: safeResponse,
       statusCode: escenario.statusCode,
       headers: escenario.headers,
@@ -104,10 +96,11 @@ export function mapUIToBackend(escenario: EscenarioUI): Location {
                   ? escenario.chaosInjection.error
                   : 0,
               probability: String(escenario.chaosInjection.errorProbability ?? "0"),
-              response: safeResponse,
+              response: escenario.chaosInjection.errorResponse ?? "",
             },
           }
         : undefined,
     };
+    
   }
   

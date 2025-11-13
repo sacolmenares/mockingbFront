@@ -191,16 +191,9 @@ const fetchServerData = async (serverName: string) => {
                 ...(esc.async),
                 enabled: true 
               }
-            : { 
-                enabled: false,
-                url: "http://callback.example.com",
-                method: "POST",
-                timeout: 5000,
-                retries: 3,
-                retryDelay: 1000,
-                request: '{"data": "example"}',
-                headers: { "Content-Type": "application/json" },
-              },
+            : 
+                undefined, //Para que no se active por default
+
 
            chaos_injection: esc.chaos_injection
              ? { 
@@ -211,24 +204,17 @@ const fetchServerData = async (serverName: string) => {
                  ...(esc.chaos_injection),
                  enabled: true
                }
-             : { 
-                 enabled: false, 
-                 latency: null,
-                 abort: false,
-                 error: null,
-                 probability: null,
-               },
-
-          
+             :
+                undefined,
         },
       }));
 
       setEscenarios(nuevosEscenarios.length > 0 ? nuevosEscenarios : [{
         id: Date.now(),
         data: {
-          path: "",
-          method: "",
-          response: "",
+          path: "/",
+          method: "GET",
+          response: "{}",
           status_code: 200,
         },
       }]);
@@ -254,8 +240,8 @@ const refreshDataAfterSave = (serverName: string) =>
 
   //Enviar Caos y Async si se activan 
   const getActiveLocations = () => {
-    const escenariosActivos = Object.values(panelRefs.current)
-      .map(ref => ref?.getEscenarioData?.())
+    const escenariosActivos = escenarios
+    .map(escenario => panelRefs.current[escenario.id]?.getEscenarioData?.())
       .filter((data) => data && typeof data === "object");
   
     if (escenariosActivos.length === 0) {
@@ -316,9 +302,6 @@ const refreshDataAfterSave = (serverName: string) =>
 
       return escenarioCompleto;
     });
-    
-    
-  
     return escenariosOrdenados;
   };
   
@@ -346,14 +329,15 @@ const refreshDataAfterSave = (serverName: string) =>
           const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
            //console.log("YAML original obtenido:\n", originalYaml);
  
-           const doc = YAML.parseDocument(originalYaml);
+          const doc = YAML.parseDocument(originalYaml);
  
-           const locationsData = getActiveLocations();
+          const locationsData = getActiveLocations();
  
           const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
 
           // Detectar cambios en serverConfig y aplicar solo los que difieren
           const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
+          
           const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
           if (hasServerChanges) {
             for (const key of serverKeys) {
@@ -365,80 +349,81 @@ const refreshDataAfterSave = (serverName: string) =>
             }
           }
 
-const jsOriginal = YAML.parse(originalYaml);
-const originalLocationsJS = jsOriginal?.http?.servers?.[0]?.location || [];
+          /*
+          const jsOriginal = YAML.parse(originalYaml);
+          const originalLocationsJS = jsOriginal?.http?.servers?.[0]?.location || [];
+          for (let i = 0; i < locationsData.length; i++) {
+            const loc = locationsData[i];
+            const orig = originalLocationsJS[i] || {};
 
-for (let i = 0; i < locationsData.length; i++) {
-  const loc = locationsData[i];
-  const orig = originalLocationsJS[i] || {};
-
-  // Si el location no ha cambiado, no lo tocamos
-  if (JSON.stringify(orig) === JSON.stringify(loc)) continue;
-
-
-  if (!doc.getIn(["http", "servers", 0, "location", i])) {
-    doc.setIn(["http", "servers", 0, "location", i], {});
-  }
-
-  // headers
-  if (loc.headers !== undefined && Object.keys(loc.headers).length > 0) {
-    doc.setIn(["http", "servers", 0, "location", i, "headers"], loc.headers);
-  }
-
-  // method 
-  if (loc.method) {
-    doc.setIn(["http", "servers", 0, "location", i, "method"], loc.method);
-  }
-
-  // path 
-  if (loc.path) {
-    doc.setIn(["http", "servers", 0, "location", i, "path"], loc.path);
-  }
-
-  // response 
-  if (loc.response) {
-    doc.setIn(["http", "servers", 0, "location", i, "response"], loc.response);
-  }
-
-  // schema 
-  if (loc.schema && Object.keys(loc.schema).length > 0) {
-    doc.setIn(["http", "servers", 0, "location", i, "schema"], loc.schema);
-  } else if (loc.schema === undefined && orig.schema) {
-    //Si no cambio, pero ya existe
-    doc.setIn(["http", "servers", 0, "location", i, "schema"], orig.schema);
-  }
-
-  // status_code - manejar tanto statusCode (camelCase) como status_code (snake_case)
-  const statusCode = loc.statusCode !== undefined ? loc.statusCode : loc.status_code;
-  if (statusCode !== undefined) {
-    doc.setIn(["http", "servers", 0, "location", i, "status_code"], statusCode);
-  }
-
-  // chaos_injection 
-  if (loc.chaos_injection && loc.chaos_injection.enabled) {
-    doc.setIn(["http", "servers", 0, "location", i, "chaos_injection"], loc.chaos_injection);
-  } else if (loc.chaos_injection === undefined && orig.chaos_injection) {
-    doc.setIn(["http", "servers", 0, "location", i, "chaos_injection"], orig.chaos_injection);
-  }
-
-  // async
-  if (loc.async && loc.async.enabled) {
-    doc.setIn(["http", "servers", 0, "location", i, "async"], loc.async);
-  } else if (loc.async === undefined && orig.async) {
-    doc.setIn(["http", "servers", 0, "location", i, "async"], orig.async);
-  }
-}
-
-// Si se eliminaron en ajustes, se limpian
-const originalLocationNode = doc.getIn(["http", "servers", 0, "location"]) as unknown;
-const originalLength = Array.isArray(originalLocationNode) ? originalLocationNode.length : 0;
-if (originalLength > locationsData.length) {
-  for (let j = originalLength - 1; j >= locationsData.length; j--) {
-    doc.deleteIn(["http", "servers", 0, "location", j]);
-  }
-}
+          // Si el location no ha cambiado, no lo tocamos
+          if (JSON.stringify(orig) === JSON.stringify(loc)) continue;
 
 
+          if (!doc.getIn(["http", "servers", 0, "location", i])) {
+            doc.setIn(["http", "servers", 0, "location", i], {});
+          }
+
+          // headers
+          if (loc.headers !== undefined && Object.keys(loc.headers).length > 0) {
+            doc.setIn(["http", "servers", 0, "location", i, "headers"], loc.headers);
+          }
+
+          // method 
+          if (loc.method) {
+            doc.setIn(["http", "servers", 0, "location", i, "method"], loc.method);
+          }
+
+          // path 
+          if (loc.path) {
+            doc.setIn(["http", "servers", 0, "location", i, "path"], loc.path);
+          }
+
+          // response 
+          if (loc.response) {
+            doc.setIn(["http", "servers", 0, "location", i, "response"], loc.response);
+          }
+
+          // schema 
+          if (loc.schema && Object.keys(loc.schema).length > 0) {
+            doc.setIn(["http", "servers", 0, "location", i, "schema"], loc.schema);
+          } else if (loc.schema === undefined && orig.schema) {
+            //Si no cambio, pero ya existe
+            doc.setIn(["http", "servers", 0, "location", i, "schema"], orig.schema);
+          }
+
+          // status_code - manejar tanto statusCode (camelCase) como status_code (snake_case)
+          const statusCode = loc.statusCode !== undefined ? loc.statusCode : loc.status_code;
+          if (statusCode !== undefined) {
+            doc.setIn(["http", "servers", 0, "location", i, "status_code"], statusCode);
+          }
+
+          // chaos_injection 
+          if (loc.chaos_injection && loc.chaos_injection.enabled) {
+            doc.setIn(["http", "servers", 0, "location", i, "chaos_injection"], loc.chaos_injection);
+          } else if (loc.chaos_injection === undefined && orig.chaos_injection) {
+            doc.setIn(["http", "servers", 0, "location", i, "chaos_injection"], orig.chaos_injection);
+          }
+
+          // async
+          if (loc.async && loc.async.enabled) {
+            doc.setIn(["http", "servers", 0, "location", i, "async"], loc.async);
+          } else if (loc.async === undefined && orig.async) {
+            doc.setIn(["http", "servers", 0, "location", i, "async"], orig.async);
+          }
+        }
+
+        // Si se eliminaron en ajustes, se limpian
+        const originalLocationNode = doc.getIn(["http", "servers", 0, "location"]) as unknown;
+        const originalLength = Array.isArray(originalLocationNode) ? originalLocationNode.length : 0;
+        if (originalLength > locationsData.length) {
+          for (let j = originalLength - 1; j >= locationsData.length; j--) {
+            doc.deleteIn(["http", "servers", 0, "location", j]);
+          }
+        }
+        */
+          
+          doc.setIn(["http", "servers", 0, "location"], locationsData);
 
           const jsonData = doc.toJS(); 
 

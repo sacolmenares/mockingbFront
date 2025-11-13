@@ -27,5 +27,6 @@ export interface EscenarioUI {
     abortProbability?: string | null;
     error?: number | null;
     errorProbability?: string | null;
+    errorResponse?: string | null;
   };
 }

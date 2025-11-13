@@ -26,8 +26,7 @@ export const PathSchema = z.string()
   .startsWith('/', { message: 'La ruta debe comenzar con "/"' })
   .refine(s => !s.includes(' '), { message: 'La ruta no puede contener espacios' })
   .refine(s => !s.includes('//'), { message: 'La ruta no puede tener barras consecutivas' })
-  .refine(s => /^[a-zA-Z0-9\/:_-]*$/.test(s), { message: 'La ruta contiene caracteres inválidos' });
-
+  .refine(s => /^[a-zA-Z0-9\/:_.-]*$/.test(s), { message: 'La ruta contiene caracteres inválidos' });
 
 
 export const AsyncConfigSchema = z.object({
@@ -63,7 +62,7 @@ export const EscenarioStateSchema = z.object({
   schema: JsonStringSchema.nullable().optional(),
   status_code: z.coerce.number().int().min(100, "Min 100").max(599, "Max 599"),
   headers: z.record(z.string(), z.string()),
-  response: JsonStringSchema,
+  response: z.string(),
   async: AsyncConfigSchema,
   chaos_injection: ChaosConfigSchema,
 });
