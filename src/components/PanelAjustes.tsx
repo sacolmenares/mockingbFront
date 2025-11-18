@@ -104,70 +104,12 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
     }, 400); 
   };
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  //Creamos el JSON que veremos como un archivo (por ahora)
-  /*
-  const aplicarTodosLosEscenarios = () => {
-    let hasErrors = false;
-    
-    const locationsData = escenarios.map(escenario => {
-      const panelRef = panelRefs.current[escenario.id];
-      if (panelRef) {
-        const data = panelRef.getEscenarioData();
-        if (data === null) hasErrors = true;
-        return data;
-      }
-      return null;
-    }).filter(Boolean); 
-
-    if (hasErrors) {
-      alert("No se pueden guardar: Hay errores en las rutas de algunos escenarios.");
-      return; 
-    }
-
-    const finalConfig = {
-      http: {
-        servers: [
-          {
-            ...serverConfig,      
-            location: locationsData,  
-          }
-        ]
-      }
-    };
-    
-
-    console.log("GENERANDO CONFIGURACIÓN FINAL:", JSON.stringify(finalConfig, null, 2));
-    //Aqui lo convertimos en texto para leer el archivo
-    const fileContent = JSON.stringify(finalConfig, null, 2);
-    const blob = new Blob([fileContent], { type: 'application/json' }); 
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `configuracion_mockingbird.json`; //Nombre del archivo
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-
-    onAjustesAplicados(locationsData.length);
-    setReseteando(true);
-      setTimeout(() => {
-        setEscenarios([{ id: Date.now() }]); 
-        panelRefs.current = {}; 
-        setReseteando(false); 
-      }, 3000);
-  };
-  */
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 // Ejecutar GET al seleccionar el nombre 
 const fetchServerData = async (serverName: string) => {
   try {
-
     const data = await getServerConfigFromAPI(serverName);
-    console.log("Datos del backend:", data);
-
+    console.log("Datos que vienen del backend:", data);
     const server: any = data.server_config || data?.http?.servers?.[0];
       if (server) {
         setServerConfig({
@@ -180,63 +122,60 @@ const fetchServerData = async (serverName: string) => {
       }
 
 
-  const locations = data?.http?.servers?.[0]?.location;
-    if (Array.isArray(locations)) {
-      const nuevosEscenarios = locations.map((esc: any) => ({
-        id: Date.now() + Math.random(),
-        data: {
-          path: esc.path || "/api/v1/recurso",
-          method: esc.method || "GET",
-          schema: esc.schema,
-          status_code: esc.status_code || 200,
-          headers: esc.headers || { "Content-Type": "application/json" },
-          response: esc.response || '{"message": "success"}',
-       
-          async: esc.async
-            ? { 
-                url: "http://callback.example.com",
-                method: "POST",
-                timeout: 5000,
-                retries: 3,
-                retryDelay: 1000,
-                request: '{"data": "example"}',
-                headers: { "Content-Type": "application/json" },
-                ...(esc.async),
-                enabled: true 
-              }
-            : 
-                undefined, //Para que no se active por default
+    const locations = data?.http?.servers?.[0]?.location;
+      if (Array.isArray(locations)) {
+        const nuevosEscenarios = locations.map((esc: any) => ({
+          id: Date.now() + Math.random(),
+          data: {
+            path: esc.path || "/api/v1/recurso",
+            method: esc.method || "GET",
+            schema: esc.schema,
+            status_code: esc.status_code || 200,
+            headers: esc.headers || { "Content-Type": "application/json" },
+            response: esc.response || '{"message": "success"}',
+        
+            async: esc.async
+              ? { 
+                  url: "http://callback.example.com",
+                  method: "POST",
+                  timeout: 5000,
+                  retries: 3,
+                  retryDelay: 1000,
+                  request: '{"data": "example"}',
+                  headers: { "Content-Type": "application/json" },
+                  ...(esc.async),
+                  enabled: true 
+                }
+              : 
+                  undefined, //Para que no se active por default
 
 
-           chaos_injection: esc.chaos_injection
-             ? { 
-                 latency: null,
-                 abort: false,
-                 error: null,
-                 probability: null,
-                 ...(esc.chaos_injection),
-                 enabled: true
-               }
-             :
-                undefined,
-        },
-      }));
+            chaos_injection: esc.chaos_injection
+              ? { 
+                  latency: null,
+                  abort: false,
+                  error: null,
+                  probability: null,
+                  ...(esc.chaos_injection),
+                  enabled: true
+                }
+              :
+                  undefined,
+          },
+        }));
 
-      setEscenarios(nuevosEscenarios.length > 0 ? nuevosEscenarios : [{
-        id: Date.now(),
-        data: {
-          path: "/",
-          method: "GET",
-          response: "{}",
-          status_code: 200,
-        },
-      }]);
-    }
-  } catch (error) {
-
-    // Reset por si falla fetch
+        setEscenarios(nuevosEscenarios.length > 0 ? nuevosEscenarios : [{
+          id: Date.now(),
+          data: {
+            path: "/",
+            method: "GET",
+            response: "{}",
+            status_code: 200,
+          },
+        }]);
+      }
+    } catch (error) {
     setServerConfig(defaultServerConfig);
-
     setEscenarios([{ id: Date.now() }]);
   }
 };
@@ -252,7 +191,7 @@ const refreshDataAfterSave = (serverName: string) =>
 
 
   //Enviar Caos y Async si se activan 
-  const getActiveLocations = () => {
+const getActiveLocations = () => {
     const escenariosActivos = escenarios
     .map(escenario => panelRefs.current[escenario.id]?.getEscenarioData?.())
       .filter((data) => data && typeof data === "object");
@@ -308,7 +247,6 @@ const refreshDataAfterSave = (serverName: string) =>
           delete escenarioCompleto.async;
         }
       }
-
       return escenarioCompleto;
     });
     return escenariosOrdenados;
@@ -333,8 +271,7 @@ const refreshDataAfterSave = (serverName: string) =>
       onClick={async () => {
         try {
           const serverName = selectedServer.trim().toLowerCase(); 
-          //console.log("Servidor seleccionado:", serverName);
-   
+
           const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
            //console.log("YAML original obtenido:\n", originalYaml);
  
@@ -343,7 +280,6 @@ const refreshDataAfterSave = (serverName: string) =>
           const locationsData = getActiveLocations();
  
           const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
-
 
           const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
           
@@ -360,16 +296,9 @@ const refreshDataAfterSave = (serverName: string) =>
           
           doc.setIn(["http", "servers", 0, "location"], locationsData);
           const jsonData = doc.getIn(["http", "servers", 0]);
-
-          console.log(jsonData, 'JSON QUE SE ENVIA EN EL FETCH');
-
           const payload = wrapBackendStructure(jsonData as ServerConfig);
-          console.log("JSON enviado al back", JSON.stringify(payload, null, 2))
+          
 
-
-
-
-          // 4. Enviar al backend
           const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
             method: "PUT",
             headers: {
@@ -377,13 +306,12 @@ const refreshDataAfterSave = (serverName: string) =>
             },
             body: JSON.stringify(payload),
           });
+          console.log("JSON enviado al back", JSON.stringify(payload, null, 2))
 
-if (!response.ok)
-  throw new Error(`Error HTTP: ${response.status}`);
+          if (!response.ok)
+            throw new Error(`Error HTTP: ${response.status}`);
           if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-
           alert("Configuración del servidor actualizada correctamente");
-          
           await refreshDataAfterSave(serverName);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Error al guardar la configuración del servidor.";
@@ -619,4 +547,3 @@ style.innerHTML = `
 }
 `;
 document.head.appendChild(style);
-

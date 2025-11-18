@@ -1,12 +1,50 @@
+import { useEffect } from 'react';
+
+const animationcss = `
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+.animate-fadeIn { 
+    animation: fadeIn 0.5s ease-out forwards; 
+}
+`;
+
+let isStyleInjected = false;
+
+function injectAnimationStyles() {
+    // Evita inyectar los estilos varias veces
+    if (isStyleInjected || typeof document === 'undefined') {
+        return;
+    }
+    
+    const style = document.createElement("style");
+    style.innerHTML = animationcss;
+    document.head.appendChild(style);
+    isStyleInjected = true;
+}
+
 
 export function PanelMetricas() {
-  return (
-    <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl mx-auto">
-    <h1 className="text-3xl font-bold text-gray-900 mb-8">Métricas</h1>
-      <div className="bg-gray-100 text-gray-800 p-4 rounded-3xl shadow-3xl mx-auto">
-      <p className="italic">Aquí aparecen métricas (Prometheus)</p>
-      </div>
-  </div>
+    useEffect(() => {
+        injectAnimationStyles();
+    }, []); 
+
+    return (
+        <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl mx-auto animate-fadeIn">
+            <h1 className="text-3xl font-bold text-gray-900 mb-8">Métricas</h1>
+            <div className="bg-gray-100 text-gray-800 p-4 rounded-3xl shadow-3xl mx-auto">
+                <p className="italic">Aquí aparecen métricas (Prometheus)</p>
+            </div>
+        </div>
+    );
+}
 
 
     /*
@@ -39,5 +77,3 @@ export function PanelMetricas() {
       </div>
     </div>
     */
-  );
-}
