@@ -7,6 +7,18 @@ import YAML from "yaml";
 import { CircleX } from 'lucide-react';
 import { mapBackendToUI } from "../mapeo/mapeoDatos";
 
+function wrapBackendStructure(server: ServerConfig, postgresServers: ServerConfig[] = []) {
+  return {
+    http: {
+      servers: [server]
+    },
+    postgres: {
+      servers: postgresServers
+    }
+  };
+}
+
+
 const defaultServerConfig: ServerConfig = {
   listen: 8080,
   logger: "default",
@@ -58,7 +70,8 @@ interface Escenario {
   data?: EscenarioData;
 }
 
-//Función para obtener el serverConfig
+
+
 const getServerConfigFromAPI = async (serverName: string) => { 
   const res = await fetch(`/api/mock/config?server_name=${serverName}`);
   if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
@@ -155,7 +168,7 @@ const fetchServerData = async (serverName: string) => {
     const data = await getServerConfigFromAPI(serverName);
     console.log("Datos del backend:", data);
 
-    const server = data.server_config || data?.http?.servers?.[0];
+    const server: any = data.server_config || data?.http?.servers?.[0];
       if (server) {
         setServerConfig({
           listen: server.listen ?? defaultServerConfig.listen,
@@ -276,11 +289,9 @@ const refreshDataAfterSave = (serverName: string) =>
       }
     });
   
-    // Ordenar estructura y remover flags internos (enabled) antes de serializar
+    // Ordenar estructura y remover flags 
     const escenariosOrdenados = escenariosActivos.map((esc: any) => {
       const escenarioCompleto: any = { ...esc };
-
-      // chaos_injection: eliminar si no está habilitado; si está habilitado, quitar "enabled"
       if (escenarioCompleto.chaos_injection) {
         const { enabled, ...restChaos } = escenarioCompleto.chaos_injection;
         if (enabled) {
@@ -289,8 +300,6 @@ const refreshDataAfterSave = (serverName: string) =>
           delete escenarioCompleto.chaos_injection;
         }
       }
-
-      // async: eliminar si no está habilitado; si está habilitado, quitar "enabled"
       if (escenarioCompleto.async) {
         const { enabled, ...restAsync } = escenarioCompleto.async;
         if (enabled) {
@@ -335,7 +344,7 @@ const refreshDataAfterSave = (serverName: string) =>
  
           const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
 
-          // Detectar cambios en serverConfig y aplicar solo los que difieren
+
           const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
           
           const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
@@ -348,91 +357,29 @@ const refreshDataAfterSave = (serverName: string) =>
               }
             }
           }
-
-          /*
-          const jsOriginal = YAML.parse(originalYaml);
-          const originalLocationsJS = jsOriginal?.http?.servers?.[0]?.location || [];
-          for (let i = 0; i < locationsData.length; i++) {
-            const loc = locationsData[i];
-            const orig = originalLocationsJS[i] || {};
-
-          // Si el location no ha cambiado, no lo tocamos
-          if (JSON.stringify(orig) === JSON.stringify(loc)) continue;
-
-
-          if (!doc.getIn(["http", "servers", 0, "location", i])) {
-            doc.setIn(["http", "servers", 0, "location", i], {});
-          }
-
-          // headers
-          if (loc.headers !== undefined && Object.keys(loc.headers).length > 0) {
-            doc.setIn(["http", "servers", 0, "location", i, "headers"], loc.headers);
-          }
-
-          // method 
-          if (loc.method) {
-            doc.setIn(["http", "servers", 0, "location", i, "method"], loc.method);
-          }
-
-          // path 
-          if (loc.path) {
-            doc.setIn(["http", "servers", 0, "location", i, "path"], loc.path);
-          }
-
-          // response 
-          if (loc.response) {
-            doc.setIn(["http", "servers", 0, "location", i, "response"], loc.response);
-          }
-
-          // schema 
-          if (loc.schema && Object.keys(loc.schema).length > 0) {
-            doc.setIn(["http", "servers", 0, "location", i, "schema"], loc.schema);
-          } else if (loc.schema === undefined && orig.schema) {
-            //Si no cambio, pero ya existe
-            doc.setIn(["http", "servers", 0, "location", i, "schema"], orig.schema);
-          }
-
-          // status_code - manejar tanto statusCode (camelCase) como status_code (snake_case)
-          const statusCode = loc.statusCode !== undefined ? loc.statusCode : loc.status_code;
-          if (statusCode !== undefined) {
-            doc.setIn(["http", "servers", 0, "location", i, "status_code"], statusCode);
-          }
-
-          // chaos_injection 
-          if (loc.chaos_injection && loc.chaos_injection.enabled) {
-            doc.setIn(["http", "servers", 0, "location", i, "chaos_injection"], loc.chaos_injection);
-          } else if (loc.chaos_injection === undefined && orig.chaos_injection) {
-            doc.setIn(["http", "servers", 0, "location", i, "chaos_injection"], orig.chaos_injection);
-          }
-
-          // async
-          if (loc.async && loc.async.enabled) {
-            doc.setIn(["http", "servers", 0, "location", i, "async"], loc.async);
-          } else if (loc.async === undefined && orig.async) {
-            doc.setIn(["http", "servers", 0, "location", i, "async"], orig.async);
-          }
-        }
-
-        // Si se eliminaron en ajustes, se limpian
-        const originalLocationNode = doc.getIn(["http", "servers", 0, "location"]) as unknown;
-        const originalLength = Array.isArray(originalLocationNode) ? originalLocationNode.length : 0;
-        if (originalLength > locationsData.length) {
-          for (let j = originalLength - 1; j >= locationsData.length; j--) {
-            doc.deleteIn(["http", "servers", 0, "location", j]);
-          }
-        }
-        */
           
           doc.setIn(["http", "servers", 0, "location"], locationsData);
+          const jsonData = doc.getIn(["http", "servers", 0]);
 
-          const jsonData = doc.toJS(); 
+          console.log(jsonData, 'JSON QUE SE ENVIA EN EL FETCH');
 
+          const payload = wrapBackendStructure(jsonData as ServerConfig);
+          console.log("JSON enviado al back", JSON.stringify(payload, null, 2))
+
+
+
+
+          // 4. Enviar al backend
           const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(jsonData), //Enviamos como JSON
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
           });
 
+if (!response.ok)
+  throw new Error(`Error HTTP: ${response.status}`);
           if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
 
           alert("Configuración del servidor actualizada correctamente");
@@ -491,24 +438,37 @@ const refreshDataAfterSave = (serverName: string) =>
           <div>
             <label className="text-sm font-bold text-gray-600">Listen</label>
             <input type="text" 
-            value={serverConfig.listen} 
+            value={serverConfig.listen > 0 ? serverConfig.listen : ''}
             onChange={(e) => {
-              const value = e.target.value;
-              const numericValue = Number(value);
-        
-   
-              if (!isNaN(numericValue)) {
-                handleServerConfigChange('listen', numericValue.toString()); 
-              } else if (value === '') {
-                handleServerConfigChange('listen', '');
+              const value = e.target.value.trim();
+              if (value === ''){
+                handleServerConfigChange('listen',defaultServerConfig.listen);
+              } else {
+                const numericValue = Number(value);
+                if (!isNaN(numericValue)&& numericValue > 0) {
+                  handleServerConfigChange('listen', numericValue);
+                }
               }
             }}
              className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
           </div>
+          
           <div>
             <label className="text-sm font-bold text-gray-600">Version</label>
-            <input type="text" value={serverConfig.version} onChange={(e) => handleServerConfigChange('version', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-          </div>
+            <input 
+              type="text" 
+              value={serverConfig.version} 
+              onChange={(e) => {
+                const value = e.target.value.trim();
+                  if (value === '') {
+                  handleServerConfigChange('version', defaultServerConfig.version);
+                } else {
+                  handleServerConfigChange('version', value);
+                }
+              }} 
+              className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>  
           <div className="md:col-span-2">
             <label className="text-sm font-bold text-gray-600">Logger Path</label>
             <input type="text" value={serverConfig.logger_path} onChange={(e) => handleServerConfigChange('logger_path', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>

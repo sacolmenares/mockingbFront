@@ -25,9 +25,9 @@ export interface Headers {
   }
   
   export interface AsyncConfig {
-    url: string;
-    body: string;
-    method: string;
+    url?: string;
+    body?: string;
+    method?: string;
     headers?: Headers;
     timeout?: number;
     retries?: number;

@@ -265,29 +265,21 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
 
 
   useImperativeHandle(ref, () => ({
+
+
     getEscenarioData: () => {
-      if (pathError) return null;
-      if (!validateEscenario()) {
-        console.warn("Datos inválidos");
-        return null;
+      if (pathError) {
+          console.warn("Error de ruta (pathError) detectado, devolviendo null.");
+          return null;
       }
-    
-      try {
-        JSON.parse(escenario.response); // validar JSON
-      } catch (e) {
-        console.error("El campo 'response' no es un JSON válido:", escenario.response);
-        return null;
-      }
-    
       const data = prepareEscenarioForBackend(escenario);
-      return data;
+        return data;
     },
 
-    
     setEscenarioData: (data: Partial<EscenarioUI> | null) => {
       if (!data) return;
 
-      setEscenario((prev) => {
+    setEscenario((prev) => {
         const next = JSON.parse(JSON.stringify(prev)) as EscenarioUI;
         for (const key in data) {
           // @ts-ignore
