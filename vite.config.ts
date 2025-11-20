@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://192.168.68.56:8282', //Dirección IP del mock
+        target: 'http://192.168.68.81:8282', //Dirección IP del mock
         changeOrigin: true,
       },
     },

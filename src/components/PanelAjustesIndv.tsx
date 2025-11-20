@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 import { EscenarioStateSchema } from "../validations/endpoint.squema";
 import { FieldWithError } from "./FieldWithError.tsx";
 import type { Location as LocationBackend } from "../models/backendModels";
-import { mapBackendToUI } from "../mapeo/mapeoDatos.ts";
+//import { mapBackendToUI } from "../mapeo/mapeoDatos.ts";
 import type { EscenarioUI } from "../types/escenarioUI.ts";
 
 
@@ -131,6 +131,7 @@ export const PanelAjustesIndv = forwardRef<
     }
   };
 
+  
   const validateEscenario = () => {
     // Convertir EscenarioUI a EscenarioState para validación
     const escenarioForValidation = {
@@ -257,9 +258,8 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
     if (Object.keys(ci).length > 0) {
       data.chaosInjection = ci;
     }
-  }
-
-  return data;
+    }
+    return data;
 }
 
 
