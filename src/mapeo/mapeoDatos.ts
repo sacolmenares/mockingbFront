@@ -4,7 +4,7 @@ import type { EscenarioUI } from "../types/escenarioUI";
 //Mapea los datos del back y los adapta a la UI 
 export function mapBackendToUI(location: Location | any): EscenarioUI {
   const statusCode = location.statusCode !== undefined ? location.statusCode : location.status_code;
-  
+
   return {
     path: location.path,
     method: location.method,
@@ -21,8 +21,11 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
           timeout: location.async.timeout ?? 5000,
           retries: location.async.retries ?? 3,
           retryDelay: location.async.retryDelay ?? 1000,
+
+          // CONVERSIÓN IMPORTANTE
           body: location.async.body ?? "",
-          headers: location.async.headers ?? { "Content-Type": "application/json" },
+
+          headers: location.async.headers ?? {},
         }
       : undefined,
 
@@ -43,72 +46,55 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
 
 
 export function mapUIToBackend(escenario: EscenarioUI): Location {
-  let safeResponse = escenario.response;    
-
-
-  const optionalString = (value: string | undefined): string | undefined => {
-      return (value && value.trim() !== "") ? value.trim() : undefined;
-  };
-
 
   const optionalInt = (value: number | null | undefined): number | undefined => {
-      return (value && value > 0) ? value : undefined;
+    return (value && value > 0) ? value : undefined;
   };
 
   return {
     path: escenario.path,
     method: escenario.method,
-    // schema: escenario.schema, // Se recomienda omitir si no lo usas o si te da conflictos
-    response: safeResponse,
+    response: escenario.response,
     statusCode: escenario.statusCode,
     headers: escenario.headers,
 
     async: escenario.async?.enabled
       ? {
-          // 🟢 APLICADO: Los strings vacíos se vuelven undefined.
-          url: optionalString(escenario.async.url),
-          body: optionalString(escenario.async.body),
-          method: optionalString(escenario.async.method),
-
+          url: escenario.async.url,
+          method: escenario.async.method,
+          body: escenario.async.body || "",     // <-- AQUÍ SE ENVÍA
           headers: escenario.async.headers,
-          
-          // 🟢 APLICADO: Los 0s se vuelven undefined.
           timeout: optionalInt(escenario.async.timeout),
           retries: optionalInt(escenario.async.retries),
           retryDelay: optionalInt(escenario.async.retryDelay),
         }
       : undefined,
 
-    chaosInjection: escenario.chaosInjection?.enabled
-      ? {
-          latency: {
-            // Se usa ?? 0 porque 'time' puede ser un campo requerido si 'latency' existe.
-            time: optionalInt(escenario.chaosInjection.latency) ?? 0, 
-            probability: String(escenario.chaosInjection.latencyProbability ?? "0"),
-          },
-          abort: {
-            code:
-              escenario.chaosInjection.abort !== null &&
-              escenario.chaosInjection.abort !== undefined
-                ? typeof escenario.chaosInjection.abort === "number"
-                  ? escenario.chaosInjection.abort
-                  : escenario.chaosInjection.abort === true
-                  ? 500
-                  : 0
-                : 0,
-            probability: String(escenario.chaosInjection.abortProbability ?? "0"),
-          },
-          error: {
-            code:
-              escenario.chaosInjection.error !== null &&
-              escenario.chaosInjection.error !== undefined
-                ? escenario.chaosInjection.error
-                : 0,
-            probability: String(escenario.chaosInjection.errorProbability ?? "0"),
-            response: escenario.chaosInjection.errorResponse ?? "",
-          },
-        }
-      : undefined,
+    chaosInjection:
+      escenario.chaosInjection?.enabled
+        ? {
+            latency: {
+              time: optionalInt(escenario.chaosInjection.latency) ?? 0,
+              probability: String(escenario.chaosInjection.latencyProbability ?? "0"),
+            },
+            abort: {
+              code:
+                escenario.chaosInjection.abort !== null &&
+                escenario.chaosInjection.abort !== undefined
+                  ? typeof escenario.chaosInjection.abort === "number"
+                    ? escenario.chaosInjection.abort
+                    : escenario.chaosInjection.abort === true
+                    ? 500
+                    : 0
+                  : 0,
+              probability: String(escenario.chaosInjection.abortProbability ?? "0"),
+            },
+            error: {
+              code: escenario.chaosInjection.error ?? 0,
+              probability: String(escenario.chaosInjection.errorProbability ?? "0"),
+              response: escenario.chaosInjection.errorResponse ?? "",
+            },
+          }
+        : undefined,
   };
-  
 }

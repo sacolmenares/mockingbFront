@@ -53,7 +53,7 @@ interface EscenarioData {
     timeout: number;
     retries: number;
     retryDelay: number;
-    request: string;
+    body: string;
     headers: Record<string, string>;
   };
   chaos_injection?: {
@@ -141,7 +141,7 @@ const fetchServerData = async (serverName: string) => {
                   timeout: 5000,
                   retries: 3,
                   retryDelay: 1000,
-                  request: '{"data": "example"}',
+                  body: '{"data": "example"}',
                   headers: { "Content-Type": "application/json" },
                   ...(esc.async),
                   enabled: true 
@@ -231,6 +231,8 @@ const getActiveLocations = () => {
     // Ordenar estructura y remover flags 
     const escenariosOrdenados = escenariosActivos.map((esc: any) => {
       const escenarioCompleto: any = { ...esc };
+
+      //Lógica del chaos
       if (escenarioCompleto.chaos_injection) {
         const { enabled, ...restChaos } = escenarioCompleto.chaos_injection;
         if (enabled) {
@@ -239,14 +241,24 @@ const getActiveLocations = () => {
           delete escenarioCompleto.chaos_injection;
         }
       }
+
+      //Lógica del async
       if (escenarioCompleto.async) {
         const { enabled, ...restAsync } = escenarioCompleto.async;
+      
         if (enabled) {
-          escenarioCompleto.async = restAsync;
+          escenarioCompleto.async = {
+            ...restAsync,
+            body: escenarioCompleto.async.body ?? ""
+          };
         } else {
           delete escenarioCompleto.async;
         }
       }
+      
+      
+      
+      
       return escenarioCompleto;
     });
     return escenariosOrdenados;
@@ -273,7 +285,7 @@ const getActiveLocations = () => {
           const serverName = selectedServer.trim().toLowerCase(); 
 
           const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
-           //console.log("YAML original obtenido:\n", originalYaml);
+           console.log("YAML original obtenido:\n", originalYaml);
  
           const doc = YAML.parseDocument(originalYaml);
  
@@ -282,6 +294,8 @@ const getActiveLocations = () => {
           const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
 
           const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
+          console.log("locationsData ANTES DE YAML:\n", JSON.stringify(locationsData, null, 2));
+
           
           const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
           if (hasServerChanges) {

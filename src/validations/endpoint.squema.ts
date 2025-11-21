@@ -11,7 +11,7 @@ export const AsyncConfigSchema = z.object({
   timeout: z.coerce.number().int().optional(), 
   retries: z.coerce.number().int().optional(), 
   retryDelay: z.coerce.number().int().optional(), 
-  request: z.string().nullable().optional(),
+  body: z.string().nullable().optional(),
   headers: z.record(z.string(), z.string()).optional(),
 });
 

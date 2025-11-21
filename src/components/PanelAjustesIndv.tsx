@@ -53,13 +53,6 @@ export const PanelAjustesIndv = forwardRef<
 
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-
-      //Actualizar los datos 
-      useEffect(() => {
-        if (!initialData) return;
-        setEscenario(initialData as EscenarioUI);
-
-      }, [initialData]);
       
       
 
@@ -158,7 +151,7 @@ export const PanelAjustesIndv = forwardRef<
         timeout: escenario.async.timeout || 5000,
         retries: escenario.async.retries || 3,
         retryDelay: escenario.async.retryDelay || 1000,
-        request: escenario.async.body || '{}',
+        body: escenario.async.body || '{}',
         headers: escenario.async.headers || {},
       } : {
         enabled: false,
@@ -167,7 +160,7 @@ export const PanelAjustesIndv = forwardRef<
         timeout: 5000,
         retries: 3,
         retryDelay: 1000,
-        request: '{}',
+        body: '{}',
         headers: {},
       },
     };
