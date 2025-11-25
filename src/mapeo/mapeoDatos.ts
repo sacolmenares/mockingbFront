@@ -21,10 +21,7 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
           timeout: location.async.timeout ?? 5000,
           retries: location.async.retries ?? 3,
           retryDelay: location.async.retryDelay ?? 1000,
-
-          // CONVERSIÓN IMPORTANTE
           body: location.async.body ?? "",
-
           headers: location.async.headers ?? {},
         }
       : undefined,
@@ -48,7 +45,10 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
 export function mapUIToBackend(escenario: EscenarioUI): Location {
 
   const optionalInt = (value: number | null | undefined): number | undefined => {
-    return (value && value > 0) ? value : undefined;
+    if (value === null || value === undefined) {
+      return undefined;
+    }
+    return value;
   };
 
   return {
@@ -60,13 +60,15 @@ export function mapUIToBackend(escenario: EscenarioUI): Location {
 
     async: escenario.async?.enabled
       ? {
-          url: escenario.async.url,
-          method: escenario.async.method,
-          body: escenario.async.body || "",     // <-- AQUÍ SE ENVÍA
-          headers: escenario.async.headers,
+        url: escenario.async.url ?? "/api/async/default", 
+        method: escenario.async.method ?? "POST",       
+        body: escenario.async.body ?? "",
+        headers: escenario.async.headers,
+        /*
           timeout: optionalInt(escenario.async.timeout),
           retries: optionalInt(escenario.async.retries),
           retryDelay: optionalInt(escenario.async.retryDelay),
+        */
         }
       : undefined,
 

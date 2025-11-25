@@ -1,4 +1,4 @@
-import { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
+import { useState, useImperativeHandle, forwardRef } from 'react';
 import { EndpointInput } from './Endpointinput.tsx';
 import { StatusCode } from './StatusCode.tsx';
 import Latency from './Latency.tsx';
@@ -47,8 +47,8 @@ export const PanelAjustesIndv = forwardRef<
         statusCode: (initialData as any)?.statusCode || (initialData as any)?.status_code || 200,
         headers: initialData?.headers || { 'Content-Type': 'application/json' },
         response: initialData?.response || '{"message": "success"}',
-        chaosInjection: undefined,        
-        async: undefined, //Para que no active por default async
+        chaosInjection: (initialData as EscenarioUI)?.chaosInjection,
+        async: (initialData as EscenarioUI)?.async,
       });
 
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -82,9 +82,6 @@ export const PanelAjustesIndv = forwardRef<
           enabled: false,
           url: '',
           method: 'POST',
-          timeout: 5000,
-          retries: 3,
-          retryDelay: 1000,
           body: '',
           headers: {},
         };
@@ -96,7 +93,7 @@ export const PanelAjustesIndv = forwardRef<
           if (keys[i] === 'chaosInjection') {
             current[keys[i]] = { enabled: false, latency: null, abort: null, error: null, errorResponse: null };
           } else if (keys[i] === 'async') {
-            current[keys[i]] = { enabled: false, url: '', method: 'POST', timeout: 5000, retries: 3, retryDelay: 1000, body: '', headers: {} };
+            current[keys[i]] = { enabled: false, url: '', method: 'POST', body: '', headers: {} };
           } else {
             current[keys[i]] = {};
           }
@@ -148,18 +145,12 @@ export const PanelAjustesIndv = forwardRef<
         enabled: escenario.async.enabled,
         url: escenario.async.url || 'http://example.com',
         method: escenario.async.method || 'POST',
-        timeout: escenario.async.timeout || 5000,
-        retries: escenario.async.retries || 3,
-        retryDelay: escenario.async.retryDelay || 1000,
         body: escenario.async.body || '{}',
         headers: escenario.async.headers || {},
       } : {
         enabled: false,
         url: 'http://example.com',
         method: 'POST',
-        timeout: 5000,
-        retries: 3,
-        retryDelay: 1000,
         body: '{}',
         headers: {},
       },
@@ -205,20 +196,17 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
   // Async solo si está habilitado
   if (escenario.async?.enabled) {
     data.async = {
-      url: escenario.async.url,
-      method: escenario.async.method,
-      timeout: escenario.async.timeout,
-      retries: escenario.async.retries,
-      retryDelay: escenario.async.retryDelay,
+      url: escenario.async.url ?? '/api/async/default',
+      method: escenario.async.method ?? 'POST',
     };
 
     if (escenario.async.headers && Object.keys(escenario.async.headers).length > 0) {
       data.async.headers = escenario.async.headers;
     }
 
-    if (escenario.async.body) {
-      data.async.body = escenario.async.body;
-    }
+  if (escenario.async.body !== null && escenario.async.body !== undefined) {
+    data.async.body = escenario.async.body;
+  }
   }
 
   // Chaos Injection solo si está habilitado
@@ -586,7 +574,11 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
         <div className="border-t border-gray-200 pt-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-md font-bold text-gray-700">Async</h3>
-            <input type="checkbox" checked={escenario.async?.enabled ?? false} onChange={(e) => handleStateChange('async.enabled', e.target.checked)} className="h-5 w-5 rounded accent-green-600"/>
+            <input type="checkbox" 
+            checked={escenario.async?.enabled ?? false} 
+            onChange={(e) => handleStateChange('async.enabled', e.target.checked)} 
+
+            className="h-5 w-5 rounded accent-green-600"/>
           </div>
 
           {escenario.async?.enabled && (

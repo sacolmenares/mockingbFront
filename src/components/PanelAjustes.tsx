@@ -6,6 +6,7 @@ import { Dropdown } from "./Dropdown";
 import YAML from "yaml";
 import { CircleX } from 'lucide-react';
 import { mapBackendToUI } from "../mapeo/mapeoDatos";
+import type { EscenarioUI } from "../types/escenarioUI";
 
 function wrapBackendStructure(server: ServerConfig, postgresServers: ServerConfig[] = []) {
   return {
@@ -67,7 +68,7 @@ interface EscenarioData {
 
 interface Escenario {
   id: number;
-  data?: EscenarioData;
+  data?: EscenarioUI;
 }
 
 
@@ -124,55 +125,12 @@ const fetchServerData = async (serverName: string) => {
 
     const locations = data?.http?.servers?.[0]?.location;
       if (Array.isArray(locations)) {
+
         const nuevosEscenarios = locations.map((esc: any) => ({
           id: Date.now() + Math.random(),
-          data: {
-            path: esc.path || "/api/v1/recurso",
-            method: esc.method || "GET",
-            schema: esc.schema,
-            status_code: esc.status_code || 200,
-            headers: esc.headers || { "Content-Type": "application/json" },
-            response: esc.response || '{"message": "success"}',
-        
-            async: esc.async
-              ? { 
-                  url: "http://callback.example.com",
-                  method: "POST",
-                  timeout: 5000,
-                  retries: 3,
-                  retryDelay: 1000,
-                  body: '{"data": "example"}',
-                  headers: { "Content-Type": "application/json" },
-                  ...(esc.async),
-                  enabled: true 
-                }
-              : 
-                  undefined, //Para que no se active por default
-
-
-            chaos_injection: esc.chaos_injection
-              ? { 
-                  latency: null,
-                  abort: false,
-                  error: null,
-                  probability: null,
-                  ...(esc.chaos_injection),
-                  enabled: true
-                }
-              :
-                  undefined,
-          },
-        }));
-
-        setEscenarios(nuevosEscenarios.length > 0 ? nuevosEscenarios : [{
-          id: Date.now(),
-          data: {
-            path: "/",
-            method: "GET",
-            response: "{}",
-            status_code: 200,
-          },
-        }]);
+          data: mapBackendToUI(esc),
+          }));
+        setEscenarios(nuevosEscenarios); 
       }
     } catch (error) {
     setServerConfig(defaultServerConfig);
@@ -464,7 +422,7 @@ const getActiveLocations = () => {
             ref={(ref) => {
               panelRefs.current[escenario.id] = ref;
             }}
-            initialData={escenario.data ? mapBackendToUI(escenario.data) : undefined} 
+            initialData={escenario.data}
             selectedServer={selectedServer}
             />
         </div>
