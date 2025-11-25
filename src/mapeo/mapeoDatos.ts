@@ -58,19 +58,16 @@ export function mapUIToBackend(escenario: EscenarioUI): Location {
     statusCode: escenario.statusCode,
     headers: escenario.headers,
 
+
     async: escenario.async?.enabled
-      ? {
-        url: escenario.async.url ?? "/api/async/default", 
-        method: escenario.async.method ?? "POST",       
+    ? {
+        url: escenario.async.url ?? "",
+        method: escenario.async.method ?? "POST",
         body: escenario.async.body ?? "",
-        headers: escenario.async.headers,
-        /*
-          timeout: optionalInt(escenario.async.timeout),
-          retries: optionalInt(escenario.async.retries),
-          retryDelay: optionalInt(escenario.async.retryDelay),
-        */
-        }
-      : undefined,
+        headers: escenario.async.headers ?? {},
+      }
+    : undefined,
+  
 
     chaosInjection:
       escenario.chaosInjection?.enabled

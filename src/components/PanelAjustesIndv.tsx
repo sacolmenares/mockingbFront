@@ -3,43 +3,19 @@ import { EndpointInput } from './Endpointinput.tsx';
 import { StatusCode } from './StatusCode.tsx';
 import Latency from './Latency.tsx';
 import { X } from 'lucide-react';
-import { EscenarioStateSchema } from "../validations/endpoint.squema";
 import { FieldWithError } from "./FieldWithError.tsx";
 import type { Location as LocationBackend } from "../models/backendModels";
-//import { mapBackendToUI } from "../mapeo/mapeoDatos.ts";
 import type { EscenarioUI } from "../types/escenarioUI.ts";
-
-
-/*
-interface UIAsyncConfig extends AsyncConfigBackend {
-  enabled: boolean;
-}
-
-interface UIChaosInjection {
-  enabled: boolean;
-  latency: number | null;
-  latencyProbability?: number | string | null;
-  abort: boolean | number | null;
-  abortProbability?: number | string | null;
-  error: number | null;
-  errorProbability?: number | string | null;
-}*/
-
-
 
 export interface PanelAjustesIndvRef {
   getEscenarioData: () => any;
   setEscenarioData: (data: Partial<EscenarioUI> | null) => void;
 }
 
-
 export const PanelAjustesIndv = forwardRef<
   PanelAjustesIndvRef,
   { initialData?: Partial<EscenarioUI> | LocationBackend; selectedServer: string }
 >(({ initialData }, ref) => {
-
-    
-
     const [escenario, setEscenario] = useState<EscenarioUI>({
         path: initialData?.path || '/api/v1/ruta/del/recurso',
         method: initialData?.method || 'GET',
@@ -48,17 +24,17 @@ export const PanelAjustesIndv = forwardRef<
         headers: initialData?.headers || { 'Content-Type': 'application/json' },
         response: initialData?.response || '{"message": "success"}',
         chaosInjection: (initialData as EscenarioUI)?.chaosInjection,
-        async: (initialData as EscenarioUI)?.async,
+        async: (initialData as EscenarioUI)?.async ?? {
+          enabled: false,
+          url: "",
+          method: "POST",
+          body: "",
+          headers: {},
+        },        
       });
 
-    const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [validationErrors] = useState<Record<string, string>>({})
 
-      
-      
-
-
-      
-      
   const [pathError, setPathError] = useState<string | null>(null);
 
   const handleStateChange = (field: string, value: any) => {
@@ -87,7 +63,6 @@ export const PanelAjustesIndv = forwardRef<
         };
       }
       
-      // Navegar hasta el objeto padre
       for (let i = 0; i < keys.length - 1; i++) {
         if (!current[keys[i]]) {
           if (keys[i] === 'chaosInjection') {
@@ -121,59 +96,6 @@ export const PanelAjustesIndv = forwardRef<
     }
   };
 
-  
-  const validateEscenario = () => {
-    // Convertir EscenarioUI a EscenarioState para validación
-    const escenarioForValidation = {
-      ...escenario,
-      status_code: escenario.statusCode,
-      chaos_injection: escenario.chaosInjection ? {
-        enabled: escenario.chaosInjection.enabled,
-        latency: escenario.chaosInjection.latency,
-        latencyProbability: escenario.chaosInjection.latencyProbability,
-        abort: escenario.chaosInjection.abort,
-        abortProbability: escenario.chaosInjection.abortProbability,
-        error: escenario.chaosInjection.error,
-        errorProbability: escenario.chaosInjection.errorProbability,
-      } : {
-        enabled: false,
-        latency: null,
-        abort: null,
-        error: null,
-      },
-      async: escenario.async ? {
-        enabled: escenario.async.enabled,
-        url: escenario.async.url || 'http://example.com',
-        method: escenario.async.method || 'POST',
-        body: escenario.async.body || '{}',
-        headers: escenario.async.headers || {},
-      } : {
-        enabled: false,
-        url: 'http://example.com',
-        method: 'POST',
-        body: '{}',
-        headers: {},
-      },
-    };
-    const result = EscenarioStateSchema.safeParse(escenarioForValidation);
-    if (!result.success) {
-      const errors: Record<string, string> = {};
-      if (Array.isArray((result.error as any).issues)) {
-        (result.error as any).issues.forEach((err: any) => {
-          const path = Array.isArray(err.path) ? err.path.join(".") : "";
-          errors[path] = err.message;
-          console.error(`Error de validación en ${path}:`, err.message);
-        });
-      }
-      console.error("Errores de validación completos:", errors);
-      setValidationErrors(errors);
-      return false;
-    }
-    setValidationErrors({});
-    return true;
-  };
-  
-
 // Función que prepara datos limpios para backend
 function prepareEscenarioForBackend(escenario: EscenarioUI) {
   const data: any = {
@@ -194,21 +116,14 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
   }
 
   // Async solo si está habilitado
-  if (escenario.async?.enabled) {
-    data.async = {
-      url: escenario.async.url ?? '/api/async/default',
-      method: escenario.async.method ?? 'POST',
-    };
-
-    if (escenario.async.headers && Object.keys(escenario.async.headers).length > 0) {
-      data.async.headers = escenario.async.headers;
-    }
-
-  if (escenario.async.body !== null && escenario.async.body !== undefined) {
-    data.async.body = escenario.async.body;
-  }
-  }
-
+  data.async = {
+    enabled: escenario.async?.enabled ?? false,
+    url: escenario.async?.url ?? "",
+    method: escenario.async?.method ?? "POST",
+    body: escenario.async?.body ?? "",
+    headers: escenario.async?.headers ?? {},
+  };
+  
   // Chaos Injection solo si está habilitado
   if (escenario.chaosInjection?.enabled) {
     const ci: any = {};
@@ -243,11 +158,7 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
     return data;
 }
 
-
-
   useImperativeHandle(ref, () => ({
-
-
     getEscenarioData: () => {
       if (pathError) {
           console.warn("Error de ruta (pathError) detectado, devolviendo null.");
@@ -272,8 +183,6 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
   }));
   
   
-
-
 
   return (
     <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-md border border-gray-200">
@@ -434,11 +343,13 @@ function prepareEscenarioForBackend(escenario: EscenarioUI) {
                   <input
                     type="checkbox"
                     checked={escenario.chaosInjection?.abort !== null && escenario.chaosInjection?.abort !== undefined}
-                    onChange={(e) => handleStateChange('chaosInjection.abort', e.target.checked ? true : null)}
+                    onChange={(e) =>
+                      handleStateChange('chaosInjection.abort', e.target.checked ? 500 : null)
+                    }                    
                     className="h-5 w-5 rounded accent-green-600"
                   />
                 </div>
-                {escenario.chaosInjection?.abort == true && (
+                {escenario.chaosInjection?.abort !== null && (
                 <div className="flex flex-col items-center gap-2 pl-4">
                   <div className="w-full">
                     <label className="text-sm text-gray-600">Código</label>

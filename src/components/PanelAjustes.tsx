@@ -19,7 +19,6 @@ function wrapBackendStructure(server: ServerConfig, postgresServers: ServerConfi
   };
 }
 
-
 const defaultServerConfig: ServerConfig = {
   listen: 8080,
   logger: "default",
@@ -40,37 +39,10 @@ interface ServerConfig {
   version: string;
 }
 
-interface EscenarioData {
-  path: string;
-  method: string;
-  response: string;
-  status_code: number;
-  headers?: Record<string, string>;
-  schema?: string;
-  async?: {
-    enabled: boolean; 
-    url: string;
-    method: string;
-    timeout: number;
-    retries: number;
-    retryDelay: number;
-    body: string;
-    headers: Record<string, string>;
-  };
-  chaos_injection?: {
-    enabled: boolean; 
-    latency: number | null;
-    abort: boolean;
-    error: number | null;
-    probability?: number;
-  };
-}
-
 interface Escenario {
   id: number;
   data?: EscenarioUI;
 }
-
 
 
 const getServerConfigFromAPI = async (serverName: string) => { 
@@ -121,7 +93,6 @@ const fetchServerData = async (serverName: string) => {
           version: server.version ?? defaultServerConfig.version,
         });
       }
-
 
     const locations = data?.http?.servers?.[0]?.location;
       if (Array.isArray(locations)) {
@@ -177,13 +148,15 @@ const getActiveLocations = () => {
       }
   
       if (escenario?.async?.enabled) {
-        const { url, method, timeout } = escenario.async;
-        if (!url || !method || !timeout) {
+        const { url, method } = escenario.async;
+      
+        if (!url || !method) {
           throw new Error(
-            `El escenario "${escenario.path || "(sin path)"}" tiene la opción asíncrona activa pero faltan campos.`
+            `El escenario "${escenario.path || "(sin path)"}" tiene la opción asíncrona activa pero faltan URL o Method.`
           );
         }
       }
+           
     });
   
     // Ordenar estructura y remover flags 
@@ -213,10 +186,6 @@ const getActiveLocations = () => {
           delete escenarioCompleto.async;
         }
       }
-      
-      
-      
-      
       return escenarioCompleto;
     });
     return escenariosOrdenados;
