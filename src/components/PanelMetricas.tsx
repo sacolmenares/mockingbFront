@@ -22,7 +22,7 @@ const defaultPanels = [
 
 export function PanelMetricas() {
   const [dashboardId, setDashboardId] = useState("addn4pp");
-  const [panels, setPanels] = useState(defaultPanels);
+  const [panels] = useState(defaultPanels);
 
   useEffect(() => {
     injectAnimationStyles();
@@ -60,7 +60,7 @@ export function PanelMetricas() {
         />
 
         <div className="flex gap-2">
-          {["all","request","latency","error","resource"].map(f => (
+          {["all","request","latency","error","recursos"].map(f => (
             <Button
               key={f}
               variant="ghost"
