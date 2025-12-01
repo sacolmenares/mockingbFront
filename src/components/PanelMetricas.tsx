@@ -23,6 +23,8 @@ const defaultPanels = [
 export function PanelMetricas() {
   const [baseUrl, setBaseUrl] = useState("http://localhost:3000");
   const [dashboardId, setDashboardId] = useState("addn4pp");
+  const [tempBaseUrl, setTempBaseUrl] = useState(baseUrl);
+  const [tempDashboardId, setTempDashboardId] = useState(dashboardId);
   const [panels, setPanels] = useState(defaultPanels);
   const [filter, setFilter] = useState("");
 
@@ -30,6 +32,11 @@ export function PanelMetricas() {
     injectAnimationStyles();
   }, []);
 
+  const aplicarCambios = () => {
+    setBaseUrl(tempBaseUrl);
+    setDashboardId(tempDashboardId);
+    //console.log("Configuración aplicada:", tempBaseUrl, tempDashboardId);
+};
 
   const handlePanelIdChange = (uid: string, inputValue: string) => {
     if (inputValue === "") {
@@ -39,6 +46,8 @@ export function PanelMetricas() {
       setPanels(updatedPanels);
       return;
     }
+
+
 
     const newId = parseInt(inputValue, 10);
     if (!isNaN(newId) && newId >= 0) {
@@ -103,18 +112,28 @@ export function PanelMetricas() {
         <input
             className="p-3 border rounded-xl w-64 focus:ring-2 focus:ring-blue-500 outline-none"
             placeholder="URL Base"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
+            value={tempBaseUrl}
+            onChange={(e) => setTempBaseUrl(e.target.value)}
           />
           <input
             className="p-3 border rounded-xl w-64 focus:ring-2 focus:ring-blue-500 outline-none"
             placeholder="Dashboard ID (ej: addn4pp)"
-            value={dashboardId}
-            onChange={(e) => setDashboardId(e.target.value)}
+            value={tempDashboardId}
+            onChange={(e) => setTempDashboardId(e.target.value)}
           />
         </div>
+        <div className="flex items-center">
+        <Button 
+            variant="ghost" 
+            gradientColors="from-blue-500 via-blue-600 to-blue-700"
+            onClick={aplicarCambios}
+            className=""
+          >
+          ✓ Aplicar Cambios
+          </Button>
+        </div>
 
-
+{/*
         <div className="flex justify-center w-full md:w-auto">
           <input
             className="p-3 border rounded-xl w-64 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -123,6 +142,7 @@ export function PanelMetricas() {
             onChange={(e) => setFilter(e.target.value)}
           />
         </div> 
+        */}
 
       </div>
 
@@ -160,15 +180,15 @@ export function PanelMetricas() {
                 placeholder="Ingresa ID"
                 type="number"
                 min="1" 
-                value={p.id === 0 ? "" : p.id}
-                onChange={(e) => handlePanelIdChange(p.uid, e.target.value)}
+                value={p.id === 0 ? "" : p.id} 
+                onChange={(e) => handlePanelIdChange(p.uid, e.target.value)} 
               />
             </div>
 
             {/* Iframe dinámico */}
             <div className="rounded-xl overflow-hidden bg-white shadow-inner border border-gray-100">
               <iframe
-                src={`${baseUrl}d-solo/${dashboardId}/mockingbird-metrics?orgId=1&panelId=${p.id}&from=now-1h&to=now`}
+                src={`${baseUrl}/d-solo/${dashboardId}/mockingbird-metrics?orgId=1&panelId=${p.id}&from=now-1h&to=now`}
                 width="100%"
                 height="200"
                 frameBorder="0"
