@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import logo from "../assets/logowspace.png";
+import logo from "../assets/logo2.svg";
 
 export function PageHeader() {
   const [servidorActivo, setServidorActivo] = useState<boolean | null>(null);
@@ -38,11 +38,10 @@ export function PageHeader() {
       
 
   return (
-    <div className="flex items-center justify-between p-4 border-b border-gray-200 shadow-md z-10 bg-white">
+    <div className="flex items-center justify-between p-2 border-b border-gray-200 shadow-md z-10 bg-white">
       <div className="flex items-center gap-2">
-        <img src={logo} className="h-16 m-0" alt="Logo" />
+      <img src={logo} className="h-[90px] w-[90px] object-contain" alt="Logo" />
       </div>
-
 
       <div className="flex items-center gap-3">
         <span className="text-sm text-gray-500 font-medium italic">

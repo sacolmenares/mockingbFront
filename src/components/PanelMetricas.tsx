@@ -20,6 +20,14 @@ const defaultPanels = [
   { uid: "p5", id: 5, title: "", type: "resource" },
 ];
 
+const timeRangeOptions = [
+  { label: "Últimos 30 minutos", value: "now-30m&to=now" },
+  { label: "Última hora", value: "now-1h&to=now" }, // Valor por defecto
+  { label: "Últimas 3 horas", value: "now-3h&to=now" },
+  { label: "Últimas 6 horas", value: "now-6h&to=now" },
+  { label: "Últimas 24 horas", value: "now-24h&to=now" },
+];
+
 export function PanelMetricas() {
   const [baseUrl, setBaseUrl] = useState("http://localhost:3000");
   const [dashboardId, setDashboardId] = useState("addn4pp");
@@ -27,6 +35,7 @@ export function PanelMetricas() {
   const [tempDashboardId, setTempDashboardId] = useState(dashboardId);
   const [panels, setPanels] = useState(defaultPanels);
   const [filter, setFilter] = useState("");
+  const [timeRange, setTimeRange] = useState(timeRangeOptions[1].value);
 
   useEffect(() => {
     injectAnimationStyles();
@@ -35,8 +44,7 @@ export function PanelMetricas() {
   const aplicarCambios = () => {
     setBaseUrl(tempBaseUrl);
     setDashboardId(tempDashboardId);
-    //console.log("Configuración aplicada:", tempBaseUrl, tempDashboardId);
-};
+  };
 
   const handlePanelIdChange = (uid: string, inputValue: string) => {
     if (inputValue === "") {
@@ -46,8 +54,6 @@ export function PanelMetricas() {
       setPanels(updatedPanels);
       return;
     }
-
-
 
     const newId = parseInt(inputValue, 10);
     if (!isNaN(newId) && newId >= 0) {
@@ -108,7 +114,7 @@ export function PanelMetricas() {
 
 
       <div className="flex flex-col md:flex-row gap-4 mb-8 justify-between items-center bg-white p-4 rounded-2xl shadow-sm">
-        <div className="flex gap-4 items-center">
+      <div className="flex gap-4 items-center flex-wrap">
         <input
             className="p-3 border rounded-xl w-64 focus:ring-2 focus:ring-blue-500 outline-none"
             placeholder="URL Base"
@@ -121,7 +127,19 @@ export function PanelMetricas() {
             value={tempDashboardId}
             onChange={(e) => setTempDashboardId(e.target.value)}
           />
+          <select
+            className="p-3 border rounded-xl w-52 bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
+          >
+            {timeRangeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
+
         <div className="flex items-center">
         <Button 
             variant="ghost" 
@@ -132,18 +150,6 @@ export function PanelMetricas() {
           ✓ Aplicar Cambios
           </Button>
         </div>
-
-{/*
-        <div className="flex justify-center w-full md:w-auto">
-          <input
-            className="p-3 border rounded-xl w-64 focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="Buscar ..."
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-        </div> 
-        */}
-
       </div>
 
       <div className="grid grid-rows-1 md:grid-rows-2 lg:grid-rows-3 gap-6">
@@ -152,7 +158,6 @@ export function PanelMetricas() {
             key={p.uid}
             className={`p-6 rounded-3xl shadow-lg border relative group transition-all duration-300 hover:-translate-y-1 ${panelBgClass(p.type)} animate-fadeInUp`}
           >
-      
             <div className="flex justify-between items-start mb-4">
                <h2 className="text-lg font-bold flex items-center gap-2 truncate">
                 {p.title}
@@ -188,8 +193,7 @@ export function PanelMetricas() {
             {/* Iframe dinámico */}
             <div className="rounded-xl overflow-hidden bg-white shadow-inner border border-gray-100">
               <iframe
-                src={`${baseUrl}/d-solo/${dashboardId}/mockingbird-metrics?orgId=1&panelId=${p.id}&from=now-1h&to=now`}
-                width="100%"
+                src={`${baseUrl}/d-solo/${dashboardId}/mockingbird-metrics?orgId=1&panelId=${p.id}&from=${timeRange.split('&')[0]}&to=${timeRange.split('&')[1].replace('to=', '')}`}                width="100%"
                 height="200"
                 frameBorder="0"
                 className="pointer-events-none" 
