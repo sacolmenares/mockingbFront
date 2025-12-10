@@ -34,7 +34,7 @@ export function PanelMetricas() {
   const [tempBaseUrl, setTempBaseUrl] = useState(baseUrl);
   const [tempDashboardId, setTempDashboardId] = useState(dashboardId);
   const [panels, setPanels] = useState(defaultPanels);
-  const [filter, setFilter] = useState("");
+  const [filter] = useState("");
   const [timeRange, setTimeRange] = useState(timeRangeOptions[1].value);
 
   useEffect(() => {
