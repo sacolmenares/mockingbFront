@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { FieldWithError } from "./FieldWithError.tsx";
 import type { Location as LocationBackend } from "../models/backendModels";
 import type { EscenarioUI } from "../types/escenarioUI.ts";
+import { mapUIToBackend } from "../mapeo/mapeoDatos";
 
 export interface PanelAjustesIndvRef {
   getEscenarioData: () => any;
@@ -96,76 +97,9 @@ export const PanelAjustesIndv = forwardRef<
     }
   };
 
-// Función que prepara datos limpios para backend
-function prepareEscenarioForBackend(escenario: EscenarioUI) {
-  const data: any = {
-    path: escenario.path,
-    method: escenario.method,
-    status_code: escenario.statusCode, 
-    response: escenario.response,
-  };
-
-  // Schema si existe
-  if (escenario.schema) {
-    data.schema = escenario.schema;
-  }
-
-  // Header si existe
-  if (escenario.headers && Object.keys(escenario.headers).length > 0) {
-    data.headers = escenario.headers;
-  }
-
-  // Async solo si está habilitado
-  data.async = {
-    enabled: escenario.async?.enabled ?? false,
-    url: escenario.async?.url ?? "",
-    method: escenario.async?.method ?? "POST",
-    body: escenario.async?.body ?? "",
-    headers: escenario.async?.headers ?? {},
-  };
-  
-  // Chaos Injection solo si está habilitado
-  if (escenario.chaosInjection?.enabled) {
-    const ci: any = {};
-
-    if (escenario.chaosInjection.latency !== null && escenario.chaosInjection.latency !== undefined) {
-      ci.latency = {
-        time: escenario.chaosInjection.latency,
-        probability: escenario.chaosInjection.latencyProbability ?? 0,
-      };
-    }
-
-    if (escenario.chaosInjection.abort !== null && escenario.chaosInjection.abort !== undefined) {
-      ci.abort = {
-        code: typeof escenario.chaosInjection.abort === 'boolean' ? 500 : escenario.chaosInjection.abort,
-        probability: escenario.chaosInjection.abortProbability ?? 0,
-      };
-    }
-
-    if (escenario.chaosInjection.error !== null && escenario.chaosInjection.error !== undefined) {
-      ci.error = {
-        code: escenario.chaosInjection.error,
-        probability: escenario.chaosInjection.errorProbability ?? 0,
-        response: escenario.chaosInjection.errorResponse ?? "",
-      };
-    }
-
-    // Solo agrega chaosInjection si tiene algo
-    if (Object.keys(ci).length > 0) {
-      data.chaosInjection = ci;
-    }
-    }
-    return data;
-}
-
   useImperativeHandle(ref, () => ({
     getEscenarioData: () => {
-      if (pathError) {
-          console.warn("Error de ruta (pathError) detectado, devolviendo null.");
-          return null;
-      }
-      const data = prepareEscenarioForBackend(escenario);
-        return data;
+      return mapUIToBackend(escenario);
     },
 
     setEscenarioData: (data: Partial<EscenarioUI> | null) => {

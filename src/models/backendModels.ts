@@ -43,7 +43,7 @@ export interface Headers {
     headers?: Headers;
     statusCode: number;
     async?: AsyncConfig;
-    chaosInjection?: ChaosInjection;
+    chaos_injection?: ChaosInjection;
   }
   
   export interface Server {

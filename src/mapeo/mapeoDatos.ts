@@ -4,6 +4,7 @@ import type { EscenarioUI } from "../types/escenarioUI";
 //Mapea los datos del back y los adapta a la UI 
 export function mapBackendToUI(location: Location | any): EscenarioUI {
   const statusCode = location.statusCode !== undefined ? location.statusCode : location.status_code;
+  const chaos = location.chaos_injection;
 
   return {
     path: location.path,
@@ -26,16 +27,16 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
         }
       : undefined,
 
-    chaosInjection: location.chaosInjection
-      ? {
+    chaosInjection: chaos ?
+       {
           enabled: true,
-          latency: location.chaosInjection.latency?.time ?? null,
-          latencyProbability: location.chaosInjection.latency?.probability ?? null,
-          abort: location.chaosInjection.abort?.code ?? null,
-          abortProbability: location.chaosInjection.abort?.probability ?? null,
-          error: location.chaosInjection.error?.code ?? null,
-          errorProbability: location.chaosInjection.error?.probability ?? null,
-          errorResponse: location.chaosInjection.error?.response ?? null,
+          latency: (chaos.latency?.time > 0) ? chaos.latency.time : null,
+          latencyProbability: chaos.latency?.probability || null,
+          abort: (chaos.abort?.code > 0) ? chaos.abort.code : null,
+          abortProbability: chaos.abort?.probability || null,
+          error: (chaos.error?.code > 0) ? chaos.error.code : null,
+          errorProbability: chaos.error?.probability || null,
+          errorResponse: chaos.error?.response || null,
         }
       : undefined,
   };
@@ -43,7 +44,6 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
 
 
 export function mapUIToBackend(escenario: EscenarioUI): Location {
-
   const optionalInt = (value: number | null | undefined): number | undefined => {
     if (value === null || value === undefined) {
       return undefined;
@@ -68,8 +68,7 @@ export function mapUIToBackend(escenario: EscenarioUI): Location {
       }
     : undefined,
   
-
-    chaosInjection:
+    chaos_injection:
       escenario.chaosInjection?.enabled
         ? {
             latency: {

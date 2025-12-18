@@ -21,7 +21,9 @@ const defaultPanels = [
 ];
 
 const timeRangeOptions = [
-  { label: "Últimos 30 minutos", value: "now-30m&to=now" },
+  { label: "Último minuto", value: "now-1m&to=now" },
+  { label: "Últimos 5 minutos", value: "now-5m&to=now" },
+  { label: "Últimos 10 minutos", value: "now-10m&to=now" },
   { label: "Última hora", value: "now-1h&to=now" }, // Valor por defecto
   { label: "Últimas 3 horas", value: "now-3h&to=now" },
   { label: "Últimas 6 horas", value: "now-6h&to=now" },

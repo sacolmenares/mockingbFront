@@ -2,8 +2,6 @@ import { z } from 'zod';
 
 export const PathSchema = z.string();
 
-
-
 export const AsyncConfigSchema = z.object({
   enabled: z.boolean(),
   url: z.string().optional(), 

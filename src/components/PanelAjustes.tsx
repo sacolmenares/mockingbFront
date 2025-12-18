@@ -119,6 +119,17 @@ const refreshDataAfterSave = (serverName: string) =>
   });
 
 
+  const getActiveLocations = () => {
+    return escenarios
+      .map(escenario => {
+        const data = panelRefs.current[escenario.id]?.getEscenarioData?.();
+        return data;
+      })
+      .filter((data): data is any => data !== undefined && data !== null);
+  };
+
+
+  /*
   //Enviar Caos y Async si se activan 
 const getActiveLocations = () => {
     const escenariosActivos = escenarios
@@ -190,6 +201,7 @@ const getActiveLocations = () => {
     });
     return escenariosOrdenados;
   };
+  */
   
   
   
@@ -378,14 +390,14 @@ const getActiveLocations = () => {
           }}
         >
 
-          <Button
-            onClick={() => eliminarEscenario(escenario.id)}
-            variant={"ghost"}
-            className="eliminate-btn absolute top-3 right-3 w-10 h-10 flex items-center justify-center text-red-500 hover:text-red-700 font-bold text-lg rounded-full hover:bg-red-50 transition-all duration-200"
-            title="Eliminar endpoint"
-          >
-          <CircleX /> 
-          </Button>
+      <Button
+        onClick={() => eliminarEscenario(escenario.id)}
+        variant={"ghost"}
+        className="eliminate-btn absolute top-3 right-3 w-10 h-10 flex items-center justify-center font-bold text-lg rounded-full hover:bg-red-50 transition-all duration-200"
+        title="Eliminar endpoint"
+      >
+        <CircleX style={{ color: '#B91C1C' }} /> 
+      </Button>
 
           <PanelAjustesIndv
             ref={(ref) => {
