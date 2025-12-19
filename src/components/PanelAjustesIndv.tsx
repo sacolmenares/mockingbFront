@@ -119,11 +119,11 @@ export const PanelAjustesIndv = forwardRef<
   
 
   return (
-    <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-md border border-gray-200">
+    <div className="bg-transparent text-gray-800 dark:text-gray-200">
       <div className="space-y-6">
 
-      <div className="border-gray-200 pt-4">
-          <h3 className="text-md font-bold text-gray-700 mb-3">Headers</h3> {/** Headers princiapl */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4 transition-colors">
+        <h3 className="text-md font-bold text-gray-700 dark:text-gray-300 mb-3">Headers</h3> 
           <div>
           {Object.entries((escenario.headers || {})).map(([key, value], index) => (
             <div key={index} className="flex items-center gap-2 mb-2 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
@@ -137,7 +137,9 @@ export const PanelAjustesIndv = forwardRef<
                   newHeaders[newKey] = value;
                   handleStateChange('headers', newHeaders);
                 }}
-                className="w-1/3 bg-gray-100 p-2 rounded-lg text-sm"
+                className="w-1/3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200
+                          border border-gray-200 dark:border-gray-700 p-2 rounded-lg text-sm
+                          transition-colors duration-300"
                 placeholder="Nombre"
               />
               <input
@@ -147,7 +149,8 @@ export const PanelAjustesIndv = forwardRef<
                   const newHeaders = { ...(escenario.headers || {}), [key]: e.target.value };
                   handleStateChange('headers', newHeaders);
                 }}
-                className="w-2/3 bg-gray-100 p-2 rounded-lg text-sm"
+                className="w-2/3 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg text-sm text-gray-800 
+                          dark:text-white border border-transparent dark:border-gray-700"
                 placeholder=" "
               />
               <button
@@ -186,29 +189,29 @@ export const PanelAjustesIndv = forwardRef<
         {pathError && (<p className="text-xs text-red-600 -mt-4 ml-2">{pathError}</p>)}
 
         <FieldWithError error={validationErrors["response"]}>
-          <label className="block text-sm font-bold text-gray-600 mb-2">Response</label>
+          <label className="block text-sm font-bold text-gray-200 mb-2">Response</label>
           <textarea 
             value={escenario.response}
             onChange={(e) => handleStateChange('response', e.target.value)}
-            className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+            className="w-full bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200"
             rows={5}
           />
         </FieldWithError>
 
 
         <FieldWithError error={validationErrors["schema"]}>
-          <label className="block text-sm font-bold text-gray-600 mb-2">Schema</label>
+          <label className="block text-sm font-bold text-gray-200 mb-2">Schema</label>
           <textarea
             value={escenario.schema ?? ''}
             onChange={(e) => handleStateChange('schema', e.target.value)}
-            className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+            className="w-full bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200"
             rows={5}
           />
         </FieldWithError>
 
         <FieldWithError error={validationErrors["status_code"]}>
           <StatusCode
-            label="Status Code"
+            label ="Status Code"
             value={escenario.statusCode}
             onChange={(v) => handleStateChange('statusCode', v)}
           />
@@ -217,7 +220,7 @@ export const PanelAjustesIndv = forwardRef<
   
         <div className="border-t border-gray-200 pt-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-md font-bold text-gray-700">Chaos Injection</h3>
+            <h3 className="text-md font-bold text-gray-700 dark:text-gray-300 mb-3">Chaos Injection</h3>
             <input
               type="checkbox"
               checked={escenario.chaosInjection?.enabled ?? false}
@@ -231,7 +234,9 @@ export const PanelAjustesIndv = forwardRef<
               <div className="pl-4 border-l-2 border-gray-200 space-y-3 pt-4">
 
                 <div className="flex items-center justify-between">
-                  <label className="text-sm text-gray-600">Habilitar Latencia</label>
+                <label className="text-sm text-gray-600 dark:text-gray-100 transition-colors">
+                  Habilitar Latencia
+                </label>
                   <input
                     type="checkbox"
                     checked={escenario.chaosInjection?.latency !== null && escenario.chaosInjection?.latency !== undefined}
@@ -249,7 +254,9 @@ export const PanelAjustesIndv = forwardRef<
                   />
                   </div>
                   <div className="w-full">
-                  <label className="text-sm text-gray-600">Probabilidad (%)</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-100 transition-colors">
+                  Probabilidad (%)
+                  </label>
                   <input
                     type="number"
                     value={escenario.chaosInjection.latencyProbability ?? ''}
@@ -265,7 +272,7 @@ export const PanelAjustesIndv = forwardRef<
                         handleStateChange('chaosInjection.latencyProbability', numValue);
                       }
                     }}
-                    className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                    className="w-28 bg-gray-100 dark:bg-gray-700 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 border-transparent"
                     placeholder="0-100"
                   />
                   </div>
@@ -273,7 +280,9 @@ export const PanelAjustesIndv = forwardRef<
                 )}
 
                 <div className="flex items-center justify-between">
-                  <label className="text-sm text-gray-600">Habilitar Abort</label>
+                <label className="text-sm text-gray-600 dark:text-gray-100 transition-colors">
+                  Habilitar Abort
+                </label>
                   <input
                     type="checkbox"
                     checked={escenario.chaosInjection?.abort !== null && escenario.chaosInjection?.abort !== undefined}
@@ -286,7 +295,8 @@ export const PanelAjustesIndv = forwardRef<
                 {escenario.chaosInjection?.abort !== null && (
                 <div className="flex flex-col items-center gap-2 pl-4">
                   <div className="w-full">
-                    <label className="text-sm text-gray-600">Código</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-100 transition-colors">
+                      Código</label>
                     <input
                       type="number"
                       value={
@@ -306,7 +316,7 @@ export const PanelAjustesIndv = forwardRef<
                           handleStateChange('chaosInjection.abort', numValue);
                         }
                       }}
-                      className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                      className="w-28 bg-gray-100 dark:bg-gray-700 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 border-transparent"
                       placeholder="ej 500"
                       min={100}
                       max={599}
@@ -315,7 +325,8 @@ export const PanelAjustesIndv = forwardRef<
 
 
                   <div className="w-full">
-                  <label className="text-sm text-gray-600">Probabilidad (%)</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-100 transition-colors">
+                  Probabilidad (%)</label>
                   <input
                     type="number"
                     value={escenario.chaosInjection?.abortProbability ?? ''}
@@ -331,7 +342,7 @@ export const PanelAjustesIndv = forwardRef<
                         handleStateChange('chaosInjection.abortProbability', numValue);
                       }
                     }}
-                    className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                    className="w-28 bg-gray-100 dark:bg-gray-700 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 border-transparent"
                     placeholder="0-100"
                   />
                   </div>
@@ -343,7 +354,8 @@ export const PanelAjustesIndv = forwardRef<
 
 
                 <div className="flex items-center justify-between">
-                  <label className="text-sm text-gray-600">Habilitar Error</label>
+                <label className="text-sm text-gray-600 dark:text-gray-100 transition-colors">
+                  Habilitar Error</label>
                   <input
                     type="checkbox"
                     checked={escenario.chaosInjection?.error !== null && escenario.chaosInjection?.error !== undefined}
@@ -354,7 +366,8 @@ export const PanelAjustesIndv = forwardRef<
                 {escenario.chaosInjection?.error !== null && escenario.chaosInjection?.error !== undefined && (
                   <div className="flex flex-col items-center gap-2 pl-4">
                     <div className="w-full">
-                    <label className="text-sm text-gray-600">Código de Error</label>
+                    <label className="text-sm text-gray-600 dark:text-gray-100 transition-colors">
+                    Código de Error</label>
                     <input
                       type="number"
                       value={escenario.chaosInjection.error}
@@ -369,15 +382,16 @@ export const PanelAjustesIndv = forwardRef<
                           handleStateChange('chaosInjection.error', numValue);
                         }
                       }}                      
-                      className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                      className="w-28 bg-gray-100 dark:bg-gray-700 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 border-transparent"
                       placeholder="e.g. 500"
                       min={100}
                       max={599}
                     />
                     </div>
                     <div className="w-full">
-                  <label className="text-sm text-gray-600">Probabilidad (%)</label>
-                  <input
+                    <label className="text-sm text-gray-600 dark:text-gray-100 transition-colors">
+                    Probabilidad (%)</label>
+                    <input
                     type="number"
                     value={escenario.chaosInjection?.errorProbability ?? ''}
                     onChange={(e) => {
@@ -392,17 +406,17 @@ export const PanelAjustesIndv = forwardRef<
                         handleStateChange('chaosInjection.errorProbability', numValue);
                       }
                     }}
-                    className="w-28 bg-gray-100 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                    className="w-28 bg-gray-100 dark:bg-gray-700 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 border-transparent"
                     placeholder="0-100"
                   />
                   </div>
 
                     <div className="w-full">
-                    <label className="text-sm font-bold text-gray-600 mb-2">Response</label>
+                    <label className="text-sm font-bold text-gray-600 mb-2 dark:text-gray-100">Response</label>
                     <textarea
                       value={escenario.chaosInjection?.errorResponse || ''}
                       onChange={(e) => handleStateChange('chaosInjection.errorResponse', e.target.value)}
-                      className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+                      className="w-full bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200"
                       rows={5}
                     />
                     </div>
@@ -418,7 +432,7 @@ export const PanelAjustesIndv = forwardRef<
 
         <div className="border-t border-gray-200 pt-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-md font-bold text-gray-700">Async</h3>
+            <h3 className="text-md font-bold text-gray-700 dark:text-gray-300 mb-3">Async</h3>
             <input type="checkbox" 
             checked={escenario.async?.enabled ?? false} 
             onChange={(e) => handleStateChange('async.enabled', e.target.checked)} 
@@ -436,18 +450,18 @@ export const PanelAjustesIndv = forwardRef<
           onPathChange={(v) => handleStateChange('async.url', v)}    
         />
     <div>
-      <label className="block text-sm font-bold text-gray-600 mb-2">Response</label>
+      <label className="block text-sm font-bold text-gray-600 mb-2 dark:text-gray-100">Response</label>
       <textarea
         value={escenario.async?.body || ''}
         onChange={(e) => handleStateChange('async.body', e.target.value)}
-        className="w-full bg-gray-100 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent"
+        className="w-full bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200"
         rows={3}
       />
     </div>
 
 
     <div>
-      <label className="block text-sm font-bold text-gray-600 mb-2">Headers</label>
+      <label className="block text-sm font-bold text-gray-600 mb-2 dark:text-gray-100">Headers</label>
       {Object.entries(escenario.async?.headers || {}).map(([key, value], index) => (
             <div key={index} className="flex items-center gap-2 mb-2 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
               <input
@@ -460,7 +474,9 @@ export const PanelAjustesIndv = forwardRef<
                   newHeaders[newKey] = value;
                   handleStateChange('async.headers', newHeaders);
                 }}
-                className="w-1/3 bg-gray-100 p-2 rounded-lg text-sm"
+                className="w-1/3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200
+                          border border-gray-200 dark:border-gray-700 p-2 rounded-lg text-sm
+                          transition-colors duration-300"
                 placeholder="Nombre"
               />
               <input
@@ -470,7 +486,8 @@ export const PanelAjustesIndv = forwardRef<
                   const newHeaders = { ...(escenario.async?.headers || {}), [key]: e.target.value };
                   handleStateChange('async.headers', newHeaders);
                 }}
-                className="w-2/3 bg-gray-100 p-2 rounded-lg text-sm"
+                className="w-2/3 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg text-sm text-gray-800 
+                          dark:text-white border border-transparent dark:border-gray-700"
                 placeholder=" "
               />
               <button

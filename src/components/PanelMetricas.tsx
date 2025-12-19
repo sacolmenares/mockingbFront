@@ -100,37 +100,37 @@ export function PanelMetricas() {
 
   const panelBgClass = (type: string | undefined) => {
     switch (type) {
-      case "error": return "bg-red-50 border-red-200 text-red-700";
-      case "latency": return "bg-blue-50 border-blue-200 text-blue-700";
-      case "request": return "bg-green-50 border-green-200 text-green-700";
-      case "resource": return "bg-pink-50 border-pink-200 text-pink-700";
-      default: return "bg-gray-50 border-gray-200 text-gray-700";
+      case "error": return "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300";
+      case "latency": return "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300";
+      case "request": return "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300";
+      case "resource": return "bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-300";
+      default: return "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300";
     }
   };
 
   return (
-    <div className="bg-gray-100 p-8 rounded-3xl shadow-xl max-w-7xl mx-auto">
-      <h1 className="text-4xl font-extrabold text-gray-900 mb-6 text-center">
+    <div className="bg-gray-100 dark:bg-gray-900 p-8 rounded-3xl shadow-xl max-w-7xl mx-auto">
+      <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-6 text-center">
         Panel de Métricas
       </h1>
 
 
-      <div className="flex flex-col md:flex-row gap-4 mb-8 justify-between items-center bg-white p-4 rounded-2xl shadow-sm">
+      <div className="flex flex-col md:flex-row gap-4 mb-8 justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm">
       <div className="flex gap-4 items-center flex-wrap">
         <input
-            className="p-3 border rounded-xl w-64 focus:ring-2 focus:ring-blue-500 outline-none"
+            className="p-3 border border-gray-300 dark:border-gray-600 rounded-xl w-64 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 outline-none"
             placeholder="URL Base"
             value={tempBaseUrl}
             onChange={(e) => setTempBaseUrl(e.target.value)}
           />
           <input
-            className="p-3 border rounded-xl w-64 focus:ring-2 focus:ring-blue-500 outline-none"
+            className="p-3 border border-gray-300 dark:border-gray-600 rounded-xl w-64 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 outline-none"
             placeholder="Dashboard ID (ej: addn4pp)"
             value={tempDashboardId}
             onChange={(e) => setTempDashboardId(e.target.value)}
           />
           <select
-            className="p-3 border rounded-xl w-52 bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
+            className="p-3 border border-gray-300 dark:border-gray-600 rounded-xl w-52 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-600 outline-none cursor-pointer"
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
           >
@@ -169,7 +169,7 @@ export function PanelMetricas() {
               {panels.length > 3 && (
                 <button 
                   onClick={() => removePanel(p.uid)}
-                  className="text-gray-400 hover:text-red-500 font-bold p-1 rounded transition-colors"
+                  className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 font-bold p-1 rounded transition-colors"
                   title="Eliminar este panel"
                 >
                   ✕
@@ -179,11 +179,11 @@ export function PanelMetricas() {
 
 
             <div className="mb-4">
-              <label className="text-xs font-semibold opacity-70 mb-1 block">
+              <label className="text-xs font-semibold opacity-70 dark:opacity-80 mb-1 block">
                 Panel ID:
               </label>
               <input
-                className="p-2 border border-gray-300 rounded-lg w-full text-sm focus:ring-2 focus:ring-blue-400 outline-none bg-white/80"
+                className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg w-full text-sm text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600 outline-none bg-white/80 dark:bg-gray-800/80"
                 placeholder="Ingresa ID"
                 type="number"
                 min="1" 
@@ -193,7 +193,7 @@ export function PanelMetricas() {
             </div>
 
             {/* Iframe dinámico */}
-            <div className="rounded-xl overflow-hidden bg-white shadow-inner border border-gray-100">
+            <div className="rounded-xl overflow-hidden bg-white dark:bg-gray-900 shadow-inner border border-gray-100 dark:border-gray-700">
               <iframe
                 src={`${baseUrl}/d-solo/${dashboardId}/mockingbird-metrics?orgId=1&panelId=${p.id}&from=${timeRange.split('&')[0]}&to=${timeRange.split('&')[1].replace('to=', '')}`}                width="100%"
                 height="200"

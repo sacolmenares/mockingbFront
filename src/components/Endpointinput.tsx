@@ -13,12 +13,11 @@ const methodStyles: { [key: string]: string } = {
 interface EndpointInputProps {
   method: string;
   path: string;
-  onMethodChange: (method: string) => void; //funcion cuando se eliga el metodo
-  onPathChange: (path: string) => void; //funcion cuando se coloque el endpoint
+  onMethodChange: (method: string) => void; 
+  onPathChange: (path: string) => void; 
 }
 
 export function EndpointInput({ method, path, onMethodChange, onPathChange }: EndpointInputProps) {
-  // Para saber si el dropdown está abierto o cerrado.
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null); 
 
@@ -50,7 +49,7 @@ export function EndpointInput({ method, path, onMethodChange, onPathChange }: En
           </button>
 
           {isOpen && (
-            <div className="absolute top-full mt-2 w-32 bg-white rounded-lg shadow-xl z-20">
+            <div className="absolute top-full mt-2 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-20 border border-gray-200 dark:border-gray-700">
               {Object.keys(methodStyles).map((m) => (
                 <button
                   key={m}
@@ -59,7 +58,7 @@ export function EndpointInput({ method, path, onMethodChange, onPathChange }: En
                     onMethodChange(m); 
                     setIsOpen(false);   
                   }}
-                  className={`w-full text-left px-4 py-2 font-bold text-xs hover:bg-gray-100 ${methodStyles[m]}`}
+                  className={`w-full text-left px-4 py-2 font-bold text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${methodStyles[m]}`}
                 >
                   {m}
                 </button>
@@ -72,7 +71,7 @@ export function EndpointInput({ method, path, onMethodChange, onPathChange }: En
           type="text"
           value={path}
           onChange={(e) => onPathChange(e.target.value)}
-            className="w-full bg-gray-300/60 p-3 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 z-0"
+            className="w-full bg-gray-300/60 dark:bg-gray-700/60 p-3 rounded-lg text-sm font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 z-0"
         />
       </div>
     </div>

@@ -1,7 +1,6 @@
 import type { Location } from "../models/backendModels";
 import type { EscenarioUI } from "../types/escenarioUI";
 
-//Mapea los datos del back y los adapta a la UI 
 export function mapBackendToUI(location: Location | any): EscenarioUI {
   const statusCode = location.statusCode !== undefined ? location.statusCode : location.status_code;
   const chaos = location.chaos_injection;
@@ -54,6 +53,7 @@ export function mapUIToBackend(escenario: EscenarioUI): Location {
   return {
     path: escenario.path,
     method: escenario.method,
+    schema: escenario.schema,
     response: escenario.response,
     statusCode: escenario.statusCode,
     headers: escenario.headers,

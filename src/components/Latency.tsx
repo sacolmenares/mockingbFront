@@ -110,10 +110,10 @@ export default function Latency({ value, onChange }: LatencyProps) {
           value={inputValue}
           onChange={handleInput}
           placeholder="0"
-          className="w-20 border border-gray-300 rounded-lg p-1 text-center 
-                     focus:outline-none focus:ring-2 focus:ring-green-400 transition-all duration-200"
+          className="w-20 border border-gray-300 dark:border-gray-600 rounded-lg p-1 text-center bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200
+                     focus:outline-none focus:ring-2 focus:ring-green-400 dark:focus:ring-green-600 transition-all duration-200"
         />
-        <span className="text-sm text-gray-600">ms</span>
+        <span className="text-sm text-gray-600 dark:text-gray-400">ms</span>
       </div>
     </div>
   );

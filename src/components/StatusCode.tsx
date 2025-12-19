@@ -26,14 +26,14 @@ export function StatusCode({ label, value, onChange, options = defaultResponseOp
   
   return (
     <div>
-      <label className="block text-sm font-bold text-gray-600 mb-2">{label}</label>
+      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">{label}</label>
       <div className="relative">
         <select
           value={value}
           onMouseDown={() => setIsOpen(true)}
           onChange={(e) => { onChange(Number(e.target.value)); setIsOpen(false); }}
           onBlur={() => setIsOpen(false)}
-          className="w-full bg-gray-300/60 p-3 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-transparent appearance-none pr-10"
+          className="w-full bg-gray-300/60 dark:bg-gray-700/60 p-3 rounded-2xl text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 border-transparent appearance-none pr-10"
         >
 
           {options.map(option => (

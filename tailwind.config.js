@@ -1,15 +1,15 @@
-
 import colors from 'tailwindcss/colors'
 
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class', 
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
-      colors:  {
+      colors: {
         secondary: {
           DEFAULT: colors.neutral[200], 
           hover: colors.neutral[300],
@@ -19,20 +19,7 @@ export default {
           ["dark-hover"]: colors.neutral[900],
         },
       },
-    },
-  },
-  plugins: [],
-}
-
-
-//Animación al desplegarse el dropdown
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: [
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {
+      // 3. Fusionamos tus animaciones
       keyframes: {
         'fade-in-down': {
           '0%': { opacity: '0', transform: 'translateY(-6px) scale(0.98)' },
@@ -51,6 +38,3 @@ module.exports = {
   },
   plugins: [],
 }
-
-
-

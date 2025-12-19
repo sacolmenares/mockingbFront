@@ -80,7 +80,6 @@ export function PanelReportes() {
   const reportesPagina = reportesFiltrados.slice(indicePrimero, indiceUltimo);
   const totalPaginas = Math.ceil(reportesFiltrados.length / porPagina);
 
-  
 
   // Alternar visibilidad de columnas
   const toggleColumna = (col: string) => {
@@ -90,13 +89,13 @@ export function PanelReportes() {
   };
 
   return (
-    <div className="bg-gray-200 text-gray-800 p-8 rounded-2xl shadow-2xl max-w-7xl mx-auto animate-fadeIn">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Historial de reportes</h1>
+    <div className="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-8 rounded-2xl shadow-2xl max-w-7xl mx-auto animate-fadeIn">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Historial de reportes</h1>
       <div className="w-full mb-5">
         <input
           type="text"
           placeholder="Buscar en todos los reportes..."
-          className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 text-base shadow-sm"
+          className="w-full p-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 text-base shadow-sm"
           value={filtro}
           onChange={e => setFiltro(e.target.value)}
         />
@@ -132,25 +131,25 @@ export function PanelReportes() {
 
 
 
-      <div className="overflow-x-auto mt-6 bg-white rounded-2xl shadow-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="overflow-x-auto mt-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               {columnasVisibles.map(col => (
                 <th
                   key={col}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
                   {col.replace(/_/g, " ")}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
           {reportesPagina.map((reporte, i) => (
-              <tr key={i} className="hover:bg-gray-100 transition-all">
+              <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
                 {columnasVisibles.map(col => (
-                  <td key={col} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td key={col} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                     {col === "request_body" || col === "response_body"
                       ? String(reporte[col]).slice(0, 80) + "..."
                       : String(reporte[col])}
@@ -160,7 +159,7 @@ export function PanelReportes() {
             ))}
             {reportesFiltrados.length === 0 && (
               <tr>
-                <td colSpan={columnasVisibles.length} className="px-6 py-4 text-center text-gray-400">
+                <td colSpan={columnasVisibles.length} className="px-6 py-4 text-center text-gray-400 dark:text-gray-500">
                   No se encontraron resultados
                 </td>
               </tr>
@@ -171,19 +170,19 @@ export function PanelReportes() {
         <button
           onClick={() => setPaginaActual(prev => Math.max(prev - 1, 1))}
           disabled={paginaActual === 1}
-          className="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg disabled:opacity-50"
+          className="px-3 py-1 bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg disabled:opacity-50"
         >
           ← Anterior
         </button>
 
-        <span className="text-gray-700 text-sm">
+        <span className="text-gray-700 dark:text-gray-300 text-sm">
           Página {paginaActual} de {totalPaginas}
         </span>
 
         <button
           onClick={() => setPaginaActual(prev => Math.min(prev + 1, totalPaginas))}
           disabled={paginaActual === totalPaginas}
-          className="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg disabled:opacity-50"
+          className="px-3 py-1 bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg disabled:opacity-50"
         >
           Siguiente →
         </button>

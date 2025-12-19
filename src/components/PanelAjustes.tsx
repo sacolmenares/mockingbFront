@@ -1,12 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { PanelAjustesIndv } from "./PanelAjustesIndv";
 import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
 import { Button } from "./Button";
 import { Dropdown } from "./Dropdown";
 import YAML from "yaml";
-import { CircleX } from 'lucide-react';
+import { CircleX, Plus } from 'lucide-react';
 import { mapBackendToUI } from "../mapeo/mapeoDatos";
 import type { EscenarioUI } from "../types/escenarioUI";
+import { Card } from "../components/Card"
 
 function wrapBackendStructure(server: ServerConfig, postgresServers: ServerConfig[] = []) {
   return {
@@ -44,11 +45,45 @@ interface Escenario {
   data?: EscenarioUI;
 }
 
+interface ServerOption {
+  label: string;
+  value: string;
+}
 
 const getServerConfigFromAPI = async (serverName: string) => { 
   const res = await fetch(`/api/mock/config?server_name=${serverName}`);
   if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
   return res.json();
+};
+
+// Lista por defecto de servidores
+const defaultServerList: ServerOption[] = [
+  { label: "Example", value: "Mockingbird" },
+  { label: "Bancrecer", value: "Bancrecer" },
+  { label: "Sample", value: "Sample" },
+  { label: "CTS", value: "CTS" },
+];
+
+// Función para obtener la lista de servidores disponibles
+const getAvailableServers = async (currentList?: ServerOption[]): Promise<ServerOption[]> => {
+  try {
+    // Intentar obtener lista de servidores desde el backend
+    const res = await fetch('/api/mock/servers');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        return data.map((s: string) => ({ label: s, value: s.toLowerCase() }));
+      }
+      if (data.servers && Array.isArray(data.servers)) {
+        return data.servers.map((s: string) => ({ label: s, value: s.toLowerCase() }));
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error && !error.message.includes('408')) {
+      console.log("No se pudo obtener lista de servidores del backend:", error);
+    }
+  }
+  return currentList && currentList.length > 0 ? currentList : defaultServerList;
 };
 
 
@@ -67,6 +102,14 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   const [eliminando, setEliminando] = useState<number | null>(null);
   const [reseteando, _setReseteando] = useState(false);
   const [selectedServer, setSelectedServer] = useState<string>('Mockingbird');
+  const [serverOptions, setServerOptions] = useState<ServerOption[]>([
+    { label: "Example", value: "Mockingbird" },
+    { label: "Bancrecer", value: "Bancrecer" },
+    { label: "Sample", value: "Sample" },
+    { label: "CTS", value: "CTS" },
+  ]);
+  const [showAddServerModal, setShowAddServerModal] = useState(false);
+  const [newServerName, setNewServerName] = useState('');
   const agregarEscenario = () => {setEscenarios([...escenarios, { id: Date.now() }]);};
   const eliminarEscenario = (id: number) => {
     setEliminando(id);
@@ -92,21 +135,31 @@ const fetchServerData = async (serverName: string) => {
           logger_path: server.logger_path ?? defaultServerConfig.logger_path,
           version: server.version ?? defaultServerConfig.version,
         });
+      } else {
+        setServerConfig({
+          ...defaultServerConfig,
+          name: serverName.charAt(0).toUpperCase() + serverName.slice(1),
+        });
       }
 
     const locations = data?.http?.servers?.[0]?.location;
-      if (Array.isArray(locations)) {
-
+      if (Array.isArray(locations) && locations.length > 0) {
         const nuevosEscenarios = locations.map((esc: any) => ({
           id: Date.now() + Math.random(),
           data: mapBackendToUI(esc),
           }));
         setEscenarios(nuevosEscenarios); 
+      } else {
+        setEscenarios([{ id: Date.now() }]);
       }
     } catch (error) {
-    setServerConfig(defaultServerConfig);
-    setEscenarios([{ id: Date.now() }]);
-  }
+      console.log("Error al cargar servidor, usando configuración por defecto:", error);
+      setServerConfig({
+        ...defaultServerConfig,
+        name: serverName.charAt(0).toUpperCase() + serverName.slice(1),
+      });
+      setEscenarios([{ id: Date.now() }]);
+    }
 };
 
 
@@ -119,46 +172,147 @@ const refreshDataAfterSave = (serverName: string) =>
   });
 
 
-  const getActiveLocations = () => {
-    return escenarios
-      .map(escenario => {
-        const data = panelRefs.current[escenario.id]?.getEscenarioData?.();
-        return data;
-      })
-      .filter((data): data is any => data !== undefined && data !== null);
+useEffect(() => {
+  const loadServers = async () => {
+    const servers = await getAvailableServers(defaultServerList);
+    setServerOptions(servers);
+    if (servers.length > 0 && !servers.find(s => s.value === selectedServer)) {
+      setSelectedServer(servers[0].value);
+      const endpoints: Record<string, string> = {
+        Bancrecer: "bancrecer",
+        Sample: "sample",
+        CTS: "cts",
+      };
+      const serverName = endpoints[servers[0].value] || servers[0].value.toLowerCase();
+      await fetchServerData(serverName);
+    }
   };
+  loadServers();
+}, []);
+
+// Crear nuevo servidor 
+const handleCreateServer = async () => {
+  if (!newServerName.trim()) {
+    alert("Por favor ingresa un nombre para el servidor");
+    return;
+  }
+
+  const serverNameLower = newServerName.trim().toLowerCase();
+  
+  if (serverOptions.find(s => s.value.toLowerCase() === serverNameLower)) {
+    alert("Ya existe un servidor con ese nombre");
+    return;
+  }
+
+  try {
+    const newServerConfig = {
+      ...defaultServerConfig,
+      name: newServerName.trim(),
+    };
+    const yamlString = `http:
+  servers:
+    - listen: ${newServerConfig.listen}
+      logger: "${newServerConfig.logger}"
+      name: "${newServerConfig.name}"
+      logger_path: "${newServerConfig.logger_path}"
+      version: "${newServerConfig.version}"
+      location: []
+postgres:
+  servers: []
+`;
+
+    const doc = YAML.parseDocument(yamlString);
+  
+    const jsonData: any = doc.getIn(["http", "servers", 0]);
+    
+    if (!jsonData) {
+      throw new Error("Error al crear la estructura del servidor");
+    }
+    
+    const payload = wrapBackendStructure(jsonData as any);
+    
+    console.log("Payload para crear servidor:", JSON.stringify(payload, null, 2));
+    
+    // Crear el servidor en el backend
+    const response = await fetch(`/api/mock/config?server_name=${serverNameLower}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Error HTTP: ${response.status}`;
+      try {
+        const errorData = await response.text();
+        if (errorData) {
+          errorMessage += ` - ${errorData}`;
+          console.error("Error del backend:", errorData);
+        }
+      } catch (e) {
+      }
+      throw new Error(errorMessage);
+    }
+
+    const newServerOption: ServerOption = {
+      label: newServerName.trim(),
+      value: serverNameLower,
+    };
+    
+    setServerOptions([...serverOptions, newServerOption]);
+    setSelectedServer(serverNameLower);
+    setShowAddServerModal(false);
+    setNewServerName('');
+    
+    await fetchServerData(serverNameLower); //cargar datos del nuevo servidor
+    
+    alert("Servidor creado correctamente");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
+    alert(errorMessage);
+  }
+};
 
 
-  /*
-  //Enviar Caos y Async si se activan 
 const getActiveLocations = () => {
     const escenariosActivos = escenarios
-    .map(escenario => panelRefs.current[escenario.id]?.getEscenarioData?.())
-      .filter((data) => data && typeof data === "object");
+      .map(escenario => {
+        const ref = panelRefs.current[escenario.id];
+        if (!ref) {
+          console.warn(`Ref no encontrado para escenario ${escenario.id}`);
+          return null;
+        }
+        const data = ref.getEscenarioData?.();
+        if (!data || typeof data !== "object") {
+          console.warn(`Datos inválidos para escenario ${escenario.id}:`, data);
+          return null;
+        }
+        return data;
+      })
+      .filter((data): data is any => data !== null && typeof data === "object");
   
     if (escenariosActivos.length === 0) {
       console.warn("No se encontraron escenarios activos válidos.");
       return [];
     }
   
-    // Validar configuración de caos y async
     escenariosActivos.forEach((escenario: any) => {
-      if (escenario?.chaos_injection?.enabled) {
-        const { latency, abort, error, probability } = escenario.chaos_injection;
+      if (escenario?.chaos_injection) {
+        const chaos = escenario.chaos_injection;
         const tieneValores =
-          latency !== null ||
-          abort === true ||
-          (error !== null && !isNaN(error)) ||
-          (probability !== undefined && probability > 0);
-  
+          (chaos.latency?.time !== undefined && chaos.latency.time > 0) ||
+          (chaos.abort?.code !== undefined && chaos.abort.code > 0) ||
+          (chaos.error?.code !== undefined && chaos.error.code > 0);
+
         if (!tieneValores) {
           throw new Error(
             `El escenario "${escenario.path || "(sin path)"}" tiene el caos activado pero sin configuración válida.`
           );
         }
       }
-  
-      if (escenario?.async?.enabled) {
+
+      if (escenario?.async) {
         const { url, method } = escenario.async;
       
         if (!url || !method) {
@@ -167,41 +321,24 @@ const getActiveLocations = () => {
           );
         }
       }
-           
     });
   
-    // Ordenar estructura y remover flags 
     const escenariosOrdenados = escenariosActivos.map((esc: any) => {
       const escenarioCompleto: any = { ...esc };
 
-      //Lógica del chaos
-      if (escenarioCompleto.chaos_injection) {
-        const { enabled, ...restChaos } = escenarioCompleto.chaos_injection;
-        if (enabled) {
-          escenarioCompleto.chaos_injection = restChaos;
-        } else {
-          delete escenarioCompleto.chaos_injection;
-        }
-      }
-
-      //Lógica del async
       if (escenarioCompleto.async) {
-        const { enabled, ...restAsync } = escenarioCompleto.async;
-      
-        if (enabled) {
-          escenarioCompleto.async = {
-            ...restAsync,
-            body: escenarioCompleto.async.body ?? ""
-          };
-        } else {
-          delete escenarioCompleto.async;
-        }
+        escenarioCompleto.async = {
+          ...escenarioCompleto.async,
+          body: escenarioCompleto.async.body ?? ""
+        };
       }
+      
       return escenarioCompleto;
     });
+    
+    console.log("Escenarios procesados para guardar:", escenariosOrdenados);
     return escenariosOrdenados;
   };
-  */
   
   
   
@@ -210,11 +347,11 @@ const getActiveLocations = () => {
 
 
 
-  return (
-    
-    <div className="p-8 space-y-6 bg-gray-100 rounded-2xl shadow-lg">
+  return (     
+  <div className="p-8 space-y-6"> 
+    <Card title="">
     <div className="w-full flex items-center justify-between mt-4">
-        <h2 className="text-2xl font-bold text-gray-900">
+        <h2 className="text-2xl font-bold dark:text-white">
         Configuración del Servidor
         </h2>
 
@@ -227,13 +364,16 @@ const getActiveLocations = () => {
            console.log("YAML original obtenido:\n", originalYaml);
  
           const doc = YAML.parseDocument(originalYaml);
- 
+
           const locationsData = getActiveLocations();
- 
+
           const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
+          const originalLocationsRaw = doc.getIn(["http", "servers", 0, "location"]);
+          const originalLocations: any[] = Array.isArray(originalLocationsRaw) ? originalLocationsRaw : [];
 
           const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
           console.log("locationsData ANTES DE YAML:\n", JSON.stringify(locationsData, null, 2));
+          console.log("originalLocations:\n", JSON.stringify(originalLocations, null, 2));
 
           
           const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
@@ -247,7 +387,16 @@ const getActiveLocations = () => {
             }
           }
           
-          doc.setIn(["http", "servers", 0, "location"], locationsData);
+          if (locationsData && locationsData.length > 0) {
+            const locationsChanged = JSON.stringify(originalLocations) !== JSON.stringify(locationsData);
+            if (locationsChanged) {
+              doc.setIn(["http", "servers", 0, "location"], locationsData);
+            }
+          } else if (locationsData.length === 0 && originalLocations.length > 0) {
+            console.warn("No se encontraron locations activas, manteniendo las originales");
+          } else {
+            doc.setIn(["http", "servers", 0, "location"], locationsData);
+          }
           const jsonData = doc.getIn(["http", "servers", 0]);
           const payload = wrapBackendStructure(jsonData as ServerConfig);
           
@@ -266,6 +415,9 @@ const getActiveLocations = () => {
           if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
           alert("Configuración del servidor actualizada correctamente");
           await refreshDataAfterSave(serverName);
+          
+          const updatedServers = await getAvailableServers(serverOptions);
+          setServerOptions(updatedServers);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Error al guardar la configuración del servidor.";
           alert(errorMessage);
@@ -277,47 +429,51 @@ const getActiveLocations = () => {
       Guardar cambios
     </Button>
     </div> 
-    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+    </Card>
+    {/**
+    </div><div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200"> 
+    */}
     <div className="flex justify-between items-center mb-4">
+      <div className="flex items-center gap-3">
+        <Dropdown 
+          options={serverOptions}
+          value={selectedServer}
+          onChange={(val) => {
+            setSelectedServer(val);
+          
+            const endpoints: Record<string, string> = {
+              Bancrecer: "bancrecer",
+              Sample: "sample",
+              CTS: "cts",
+            };
+          
+            if (endpoints[val]) {
+              fetchServerData(endpoints[val]);
+            } else {
+              fetchServerData(val.toLowerCase());
+            }
+          }}
+        />
+        
+        <Button
+          onClick={() => setShowAddServerModal(true)}
+          variant="ghost"
+          gradientColors="from-green-500 via-green-600 to-green-700"
+          className="flex items-center gap-2"
+        >
+          <Plus size={18} />
+          Agregar servidor
+        </Button>
+      </div>
 
-
-      <Dropdown 
-      options={[
-        //
-        { label: "Example", value: "Mockingbird" }, //Ejemplo
-        { label: "Bancrecer", value: "Bancrecer" },
-        { label: "Sample", value: "Sample" },
-        { label: "CTS", value: "CTS" },
-      ]}
-      value={selectedServer}
-      onChange={(val) => {
-        setSelectedServer(val);
-      
-        const endpoints: Record<string, string> = {
-          Bancrecer: "bancrecer",
-          Sample: "sample",
-          CTS: "cts",
-        };
-      
-        if (endpoints[val]) {
-          fetchServerData(endpoints[val]);
-        } else {
-          setServerConfig(defaultServerConfig);
-        }
-        }}
-      />
-
-
-
-    {/*Config del servidor */}
     </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm font-bold text-gray-600">Name</label>
-            <input type="text" value={serverConfig.name} onChange={(e) => handleServerConfigChange('name', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Name</label>
+            <input type="text" value={serverConfig.name} onChange={(e) => handleServerConfigChange('name', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
           </div>
           <div>
-            <label className="text-sm font-bold text-gray-600">Listen</label>
+            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Listen</label>
             <input type="text" 
             value={serverConfig.listen > 0 ? serverConfig.listen : ''}
             onChange={(e) => {
@@ -331,11 +487,11 @@ const getActiveLocations = () => {
                 }
               }
             }}
-             className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+             className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
           </div>
           
           <div>
-            <label className="text-sm font-bold text-gray-600">Version</label>
+            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Version</label>
             <input 
               type="text" 
               value={serverConfig.version} 
@@ -347,22 +503,22 @@ const getActiveLocations = () => {
                   handleServerConfigChange('version', value);
                 }
               }} 
-              className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
             />
           </div>  
           <div className="md:col-span-2">
-            <label className="text-sm font-bold text-gray-600">Logger Path</label>
-            <input type="text" value={serverConfig.logger_path} onChange={(e) => handleServerConfigChange('logger_path', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Logger Path</label>
+            <input type="text" value={serverConfig.logger_path} onChange={(e) => handleServerConfigChange('logger_path', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
           </div>
            <div>
-            <label className="text-sm font-bold text-gray-600">Logger</label>
-            <input type="text" value={serverConfig.logger} onChange={(e) => handleServerConfigChange('logger', e.target.value)} className="w-full mt-1 bg-gray-200/60 p-2 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Logger</label>
+            <input type="text" value={serverConfig.logger} onChange={(e) => handleServerConfigChange('logger', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
           </div>
         </div>
-      </div>
+ 
 
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Gestión de endpoints
         </h1>
       </div>
@@ -379,7 +535,7 @@ const getActiveLocations = () => {
       {!reseteando && escenarios.map((escenario, index) => (
         <div
           key={escenario.id}
-          className={`panel-container relative border border-gray-300 rounded-2xl p-6 bg-white shadow-lg hover:shadow-xl transition-all duration-300 ${
+          className={`panel-container relative border border-gray-300 dark:border-gray-700 rounded-2xl p-6 bg-gray-50 dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 ${
             eliminando === escenario.id 
               ? 'animate-slideOut' 
               : 'animate-slideIn'
@@ -418,6 +574,59 @@ const getActiveLocations = () => {
            + Agregar escenario
          </Button>
        </div>
+
+      {showAddServerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Agregar Nuevo Servidor
+            </h2>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">
+                Nombre del Servidor
+              </label>
+              <input
+                type="text"
+                value={newServerName}
+                onChange={(e) => setNewServerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateServer();
+                  }
+                  if (e.key === 'Escape') {
+                    setShowAddServerModal(false);
+                    setNewServerName('');
+                  }
+                }}
+                placeholder="Ingrese el nombre del servidor"
+                className="w-full bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={() => {
+                  setShowAddServerModal(false);
+                  setNewServerName('');
+                }}
+                variant="ghost"
+                gradientColors="from-gray-400 via-gray-500 to-gray-600"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleCreateServer}
+                variant="ghost"
+                gradientColors="from-green-500 via-green-600 to-green-700"
+              >
+                Crear Servidor
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

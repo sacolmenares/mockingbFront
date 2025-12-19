@@ -22,7 +22,7 @@ const Sidebar: React.FC = () => {
   const currentItem = menuItems.find(item => location.pathname === item.path);
 
   return (
-    <aside className="w-64 p-6 flex flex-col shrink-0">      
+    <aside className="w-50 p-8 flex flex-col shrink-0 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 transition-colors duration-300">      
     <nav>
         <ul>
           {menuItems.map((item) => (
