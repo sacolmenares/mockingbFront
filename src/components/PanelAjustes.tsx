@@ -64,11 +64,12 @@ const defaultServerList: ServerOption[] = [
   { label: "CTS", value: "CTS" },
 ];
 
-// Función para obtener la lista de servidores disponibles
+// Función para obtener la lista de servidores disponibles desde el backend
+// Nuevo endpoint: /api/mock/config/servers (lee los archivos de config/)
 const getAvailableServers = async (currentList?: ServerOption[]): Promise<ServerOption[]> => {
   try {
     // Intentar obtener lista de servidores desde el backend
-    const res = await fetch('/api/mock/servers');
+    const res = await fetch('/api/mock/config/servers');
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -190,84 +191,74 @@ useEffect(() => {
   loadServers();
 }, []);
 
+
 // Crear nuevo servidor 
+interface LocationConfig {
+  method: string;
+  path: string;
+  headers: Record<string, string>;
+  response: string;
+  status_code: number;
+}
+
+interface ServerConfig {
+  listen: number;
+  logger: string;
+  name: string;
+  logger_path: string;
+  version: string;
+  location?: LocationConfig[];
+}
+
 const handleCreateServer = async () => {
-  if (!newServerName.trim()) {
-    alert("Por favor ingresa un nombre para el servidor");
-    return;
-  }
-
-  const serverNameLower = newServerName.trim().toLowerCase();
-  
-  if (serverOptions.find(s => s.value.toLowerCase() === serverNameLower)) {
-    alert("Ya existe un servidor con ese nombre");
-    return;
-  }
-
   try {
-    const newServerConfig = {
-      ...defaultServerConfig,
-      name: newServerName.trim(),
-    };
-    const yamlString = `http:
-  servers:
-    - listen: ${newServerConfig.listen}
-      logger: "${newServerConfig.logger}"
-      name: "${newServerConfig.name}"
-      logger_path: "${newServerConfig.logger_path}"
-      version: "${newServerConfig.version}"
-      location: []
-postgres:
-  servers: []
-`;
+    const validName = newServerName.trim();
+    if (!validName) throw new Error("Debes ingresar un nombre de servidor");
 
-    const doc = YAML.parseDocument(yamlString);
-  
-    const jsonData: any = doc.getIn(["http", "servers", 0]);
-    
-    if (!jsonData) {
-      throw new Error("Error al crear la estructura del servidor");
-    }
-    
-    const payload = wrapBackendStructure(jsonData as any);
-    
-    console.log("Payload para crear servidor:", JSON.stringify(payload, null, 2));
-    
-    // Crear el servidor en el backend
-    const response = await fetch(`/api/mock/config?server_name=${serverNameLower}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    // Payload para crear el servidor
+    const payloadPost = {
+      http: {
+        servers: [
+          {
+            name: validName,
+            version: "0.0.1",
+            logger: true,
+            logger_path: `./log/${validName.toLowerCase()}`,
+          }
+        ]
+      }
+    };
+
+   
+    const postResponse = await fetch(`/api/mock/config?server_name=${validName}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payloadPost),
     });
 
-    if (!response.ok) {
-      let errorMessage = `Error HTTP: ${response.status}`;
-      try {
-        const errorData = await response.text();
-        if (errorData) {
-          errorMessage += ` - ${errorData}`;
-          console.error("Error del backend:", errorData);
-        }
-      } catch (e) {
-      }
-      throw new Error(errorMessage);
-    }
+    if (!postResponse.ok) throw new Error(`Error al crear servidor (POST ${postResponse.status})`);
 
-    const newServerOption: ServerOption = {
-      label: newServerName.trim(),
-      value: serverNameLower,
+    const payloadPut = {
+      http: {
+        servers: [
+          {
+            listen: 1111
+          }
+        ]
+      }
     };
-    
-    setServerOptions([...serverOptions, newServerOption]);
-    setSelectedServer(serverNameLower);
-    setShowAddServerModal(false);
-    setNewServerName('');
-    
-    await fetchServerData(serverNameLower); //cargar datos del nuevo servidor
-    
-    alert("Servidor creado correctamente");
+
+    const putResponse = await fetch(`/api/mock/config?server_name=${validName}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payloadPut),
+    });
+
+    if (!putResponse.ok) throw new Error(`Error al actualizar servidor (PUT ${putResponse.status})`);
+
+    alert(`Servidor "${validName}" creado y configurado correctamente`);
+
+    await refreshDataAfterSave(validName);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
     alert(errorMessage);
