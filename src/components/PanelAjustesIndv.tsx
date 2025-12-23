@@ -44,7 +44,6 @@ export const PanelAjustesIndv = forwardRef<
       let newState = JSON.parse(JSON.stringify(prevState)) as EscenarioUI;
       let current: any = newState;
       
-      // Asegurar que las propiedades opcionales existan
       if (keys[0] === 'chaosInjection' && !newState.chaosInjection) {
         newState.chaosInjection = {
           enabled: false,
@@ -287,7 +286,7 @@ export const PanelAjustesIndv = forwardRef<
                     type="checkbox"
                     checked={escenario.chaosInjection?.abort !== null && escenario.chaosInjection?.abort !== undefined}
                     onChange={(e) =>
-                      handleStateChange('chaosInjection.abort', e.target.checked ? 500 : null)
+                      handleStateChange('chaosInjection.abort', e.target.checked ? "" : null)
                     }                    
                     className="h-5 w-5 rounded accent-green-600"
                   />
@@ -308,7 +307,7 @@ export const PanelAjustesIndv = forwardRef<
                       onChange={(e) => {
                         const value = e.target.value;
                         if (value === '') {
-                          handleStateChange('chaosInjection.abort', null);
+                          handleStateChange('chaosInjection.abort', ' ');
                           return;
                         }
                         const numValue = Number(value);
@@ -374,7 +373,7 @@ export const PanelAjustesIndv = forwardRef<
                       onChange={(e) => {
                         const value = e.target.value;
                         if (value === '') {
-                          handleStateChange('chaosInjection.error', null);
+                          handleStateChange('chaosInjection.error', '');
                           return;
                         }
                         const numValue = Number(value);
@@ -383,7 +382,7 @@ export const PanelAjustesIndv = forwardRef<
                         }
                       }}                      
                       className="w-28 bg-gray-100 dark:bg-gray-700 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 border-transparent"
-                      placeholder="e.g. 500"
+                      placeholder="ej. 500"
                       min={100}
                       max={599}
                     />

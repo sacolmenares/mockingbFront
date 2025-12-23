@@ -33,7 +33,7 @@ interface PanelAjustesProps {
 }
 
 interface ServerConfig {
-  listen: number;
+  listen: number | null;
   logger: string;
   name: string;
   logger_path: string;
@@ -58,17 +58,15 @@ const getServerConfigFromAPI = async (serverName: string) => {
 
 // Lista por defecto de servidores
 const defaultServerList: ServerOption[] = [
-  { label: "Example", value: "Mockingbird" },
   { label: "Bancrecer", value: "Bancrecer" },
   { label: "Sample", value: "Sample" },
   { label: "CTS", value: "CTS" },
 ];
 
-// Función para obtener la lista de servidores disponibles desde el backend
-// Nuevo endpoint: /api/mock/config/servers (lee los archivos de config/)
+
+//Leer lista de servidores
 const getAvailableServers = async (currentList?: ServerOption[]): Promise<ServerOption[]> => {
   try {
-    // Intentar obtener lista de servidores desde el backend
     const res = await fetch('/api/mock/config/servers');
     if (res.ok) {
       const data = await res.json();
@@ -88,15 +86,21 @@ const getAvailableServers = async (currentList?: ServerOption[]): Promise<Server
 };
 
 
+
+
 export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelAjustesProps) {
   const [serverConfig, setServerConfig] = useState<ServerConfig>(defaultServerConfig);
 
-  const handleServerConfigChange = (field: keyof ServerConfig, value: string | number) => {
-    setServerConfig(prevState => {
-        const newValue = field === 'listen' ? Number(value) : value;
-        return ({ ...prevState, [field]: newValue as any }); 
-    });
-};
+  const handleServerConfigChange = (
+    field: keyof ServerConfig,
+    value: string | number | null
+  ) => {
+    setServerConfig(prevState => ({
+      ...prevState,
+      [field]: value,
+    }));
+  };
+  
   
   const [escenarios, setEscenarios] = useState<Escenario[]>([{ id: Date.now() }]);
   const panelRefs = useRef<{ [key: number]: PanelAjustesIndvRef | null }>({});
@@ -192,30 +196,11 @@ useEffect(() => {
 }, []);
 
 
-// Crear nuevo servidor 
-interface LocationConfig {
-  method: string;
-  path: string;
-  headers: Record<string, string>;
-  response: string;
-  status_code: number;
-}
-
-interface ServerConfig {
-  listen: number;
-  logger: string;
-  name: string;
-  logger_path: string;
-  version: string;
-  location?: LocationConfig[];
-}
-
 const handleCreateServer = async () => {
   try {
     const validName = newServerName.trim();
     if (!validName) throw new Error("Debes ingresar un nombre de servidor");
 
-    // Payload para crear el servidor
     const payloadPost = {
       http: {
         servers: [
@@ -326,8 +311,6 @@ const getActiveLocations = () => {
       
       return escenarioCompleto;
     });
-    
-    console.log("Escenarios procesados para guardar:", escenariosOrdenados);
     return escenariosOrdenados;
   };
   
@@ -335,8 +318,6 @@ const getActiveLocations = () => {
   
   
   
-
-
 
   return (     
   <div className="p-8 space-y-6"> 
@@ -352,7 +333,7 @@ const getActiveLocations = () => {
           const serverName = selectedServer.trim().toLowerCase(); 
 
           const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
-           console.log("YAML original obtenido:\n", originalYaml);
+          //console.log("YAML original obtenido:\n", originalYaml);
  
           const doc = YAML.parseDocument(originalYaml);
 
@@ -363,8 +344,6 @@ const getActiveLocations = () => {
           const originalLocations: any[] = Array.isArray(originalLocationsRaw) ? originalLocationsRaw : [];
 
           const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
-          console.log("locationsData ANTES DE YAML:\n", JSON.stringify(locationsData, null, 2));
-          console.log("originalLocations:\n", JSON.stringify(originalLocations, null, 2));
 
           
           const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
@@ -458,28 +437,33 @@ const getActiveLocations = () => {
       </div>
 
     </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Name</label>
+          <input type="text" value={serverConfig.name} onChange={(e) => handleServerConfigChange('name', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
+        </div>
           <div>
-            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Name</label>
-            <input type="text" value={serverConfig.name} onChange={(e) => handleServerConfigChange('name', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
-          </div>
-          <div>
-            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Listen</label>
-            <input type="text" 
-            value={serverConfig.listen > 0 ? serverConfig.listen : ''}
+          <label className="text-sm font-bold text-gray-600 dark:text-gray-300">
+            Listen
+          </label>
+          <input
+            type="text"
+            value={serverConfig.listen ?? ''}
             onChange={(e) => {
               const value = e.target.value.trim();
-              if (value === ''){
-                handleServerConfigChange('listen',defaultServerConfig.listen);
-              } else {
-                const numericValue = Number(value);
-                if (!isNaN(numericValue)&& numericValue > 0) {
-                  handleServerConfigChange('listen', numericValue);
-                }
+              if (value === '') {
+                handleServerConfigChange('listen', null);
+                return;
+              }
+              const numericValue = Number(value);
+              if (!isNaN(numericValue) && numericValue > 0) {
+                handleServerConfigChange('listen', numericValue);
               }
             }}
-             className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
-          </div>
+            className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+          />
+      </div>
+
           
           <div>
             <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Version</label>
@@ -487,13 +471,13 @@ const getActiveLocations = () => {
               type="text" 
               value={serverConfig.version} 
               onChange={(e) => {
-                const value = e.target.value.trim();
-                  if (value === '') {
+                handleServerConfigChange('version', e.target.value); 
+              }}
+              onBlur={(e) => {
+                if (e.target.value.trim() === '') {
                   handleServerConfigChange('version', defaultServerConfig.version);
-                } else {
-                  handleServerConfigChange('version', value);
                 }
-              }} 
+              }}
               className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
             />
           </div>  
