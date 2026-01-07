@@ -4,17 +4,17 @@ export interface Headers {
   
   export interface Latency {
     time: number;
-    probability: string;
+    probability: number;
   }
   
   export interface Abort {
     code: number;
-    probability: string;
+    probability: number;
   }
   
   export interface ErrorModel {
     code: number;
-    probability: string;
+    probability: number;
     response: string;
   }
   
@@ -41,7 +41,7 @@ export interface Headers {
     schema?: string;
     response: string;
     headers?: Headers;
-    statusCode: number;
+    status_code: number;
     async?: AsyncConfig;
     chaos_injection?: ChaosInjection;
   }

@@ -5,7 +5,7 @@ export interface EscenarioUI {
   method: string;
   schema?: string;
   response: string;
-  statusCode: number;
+  status_code: number;
   headers: Headers;
 
   async?: {

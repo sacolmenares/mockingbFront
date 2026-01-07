@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Sun, Moon } from "lucide-react"; 
+import { Sun, Moon, RotateCcw } from "lucide-react"; 
 
 export function PageHeader() {
   const [servidorActivo, setServidorActivo] = useState<boolean | null>(null);
@@ -63,6 +63,15 @@ export function PageHeader() {
       </div>
 
       <div className="flex items-center gap-4">
+        <button
+          onClick={() => {
+            window.location.reload();
+          }}
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300"
+        >
+          <RotateCcw size={18} />
+        </button>
+
         <button 
           onClick={() => setDarkMode(!darkMode)}
           className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300"

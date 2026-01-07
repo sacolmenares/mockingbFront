@@ -2,7 +2,6 @@ import type { Location } from "../models/backendModels";
 import type { EscenarioUI } from "../types/escenarioUI";
 
 export function mapBackendToUI(location: Location | any): EscenarioUI {
-  const statusCode = location.statusCode !== undefined ? location.statusCode : location.status_code;
   const chaos = location.chaos_injection;
 
   return {
@@ -10,7 +9,7 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
     method: location.method,
     schema: location.schema ?? undefined,
     response: location.response,
-    statusCode: statusCode ?? 200,
+    status_code: location.status_code,
     headers: location.headers ?? { "Content-Type": "application/json" },
 
     async: location.async
@@ -43,11 +42,15 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
 
 
 export function mapUIToBackend(escenario: EscenarioUI): Location {
-  const optionalInt = (value: number | null | undefined): number | undefined => {
-    if (value === null || value === undefined) {
-      return undefined;
-    }
-    return value;
+  const toNumber = (value: unknown, fallback = 0): number => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  
+  const toBoolean = (value: unknown): boolean => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return value.toLowerCase() === "true";
+    return false;
   };
 
   return {
@@ -55,7 +58,7 @@ export function mapUIToBackend(escenario: EscenarioUI): Location {
     method: escenario.method,
     schema: escenario.schema,
     response: escenario.response,
-    statusCode: escenario.statusCode,
+    status_code: toNumber(escenario.status_code, 200),
     headers: escenario.headers,
 
 
@@ -72,24 +75,23 @@ export function mapUIToBackend(escenario: EscenarioUI): Location {
       escenario.chaosInjection?.enabled
         ? {
             latency: {
-              time: optionalInt(escenario.chaosInjection.latency) ?? 0,
-              probability: String(escenario.chaosInjection.latencyProbability ?? "0"),
+              time: toNumber(escenario.chaosInjection.latency, 0),
+              probability: toNumber(escenario.chaosInjection.latencyProbability, 0),
             },
             abort: {
-              code:
-                escenario.chaosInjection.abort !== null &&
-                escenario.chaosInjection.abort !== undefined
-                  ? typeof escenario.chaosInjection.abort === "number"
-                    ? escenario.chaosInjection.abort
-                    : escenario.chaosInjection.abort === true
-                    ? 500
-                    : 0
-                  : 0,
-              probability: String(escenario.chaosInjection.abortProbability ?? "0"),
+              code: (() => {
+                const abort = escenario.chaosInjection.abort;
+              
+                if (typeof abort === "number") return abort;
+                if (toBoolean(abort)) return 500;
+              
+                return 0;
+              })(),
+              probability: toNumber(escenario.chaosInjection.abortProbability, 0),
             },
             error: {
-              code: escenario.chaosInjection.error ?? 0,
-              probability: String(escenario.chaosInjection.errorProbability ?? "0"),
+              code: toNumber(escenario.chaosInjection.error, 0),
+              probability: toNumber(escenario.chaosInjection.errorProbability, 0),
               response: escenario.chaosInjection.errorResponse ?? "",
             },
           }

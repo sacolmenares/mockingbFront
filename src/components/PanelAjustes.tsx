@@ -4,7 +4,7 @@ import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
 import { Button } from "./Button";
 import { Dropdown } from "./Dropdown";
 import YAML from "yaml";
-import { CircleX, Plus } from 'lucide-react';
+import { CircleX, Plus, Trash } from 'lucide-react';
 import { mapBackendToUI } from "../mapeo/mapeoDatos";
 import type { EscenarioUI } from "../types/escenarioUI";
 import { Card } from "../components/Card"
@@ -250,6 +250,35 @@ const handleCreateServer = async () => {
   }
 };
 
+const handleCreateServerAndRefresh = async () => {
+  const serverName = newServerName.trim();
+  if (!serverName) return alert("Debes ingresar un nombre de servidor");
+
+  await handleCreateServer();               
+  setShowAddServerModal(false);           
+  setNewServerName('');                   
+  await refreshDataAfterSave(serverName);  
+  window.location.reload();              
+};
+
+
+const handleDeleteServer = async () => {
+  try {
+    const response = await fetch(`/api/mock/config?server_name=${selectedServer}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new Error(`Error al eliminar servidor (DELETE ${response.status})`);
+    alert(`Servidor "${selectedServer}" eliminado correctamente`);
+    await refreshDataAfterSave(selectedServer);
+    const updatedServers = await getAvailableServers(serverOptions);
+    setServerOptions(updatedServers);
+    setSelectedServer(updatedServers[0].value);
+  }
+  catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Error al eliminar el servidor.";
+    alert(errorMessage);
+  }
+};
 
 const getActiveLocations = () => {
     const escenariosActivos = escenarios
@@ -346,16 +375,23 @@ const getActiveLocations = () => {
           const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
 
           
-          const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
-          if (hasServerChanges) {
-            for (const key of serverKeys) {
-              const prevVal: string | null = originalServer?.[key] ?? null;
-              const nextVal = serverConfig[key];
-              if (prevVal !== nextVal) {
-                doc.setIn(["http", "servers", 0, key], nextVal);
+          //const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
+          for (const key of serverKeys) {
+            const prevVal = originalServer?.[key] ?? null;
+            let nextVal: string | number | boolean | null = serverConfig[key]; 
+
+          // Si el usuario ingresa manualmente un valor, se convierte a string
+            if (key === "logger") {
+              if (typeof nextVal === "string") {
+                if (nextVal.toLowerCase() === "true") nextVal = true;
+                else if (nextVal.toLowerCase() === "false") nextVal = false;
               }
             }
-          }
+          
+            if (prevVal !== nextVal) {
+              doc.setIn(["http", "servers", 0, key], nextVal);
+            }
+          }          
           
           if (locationsData && locationsData.length > 0) {
             const locationsChanged = JSON.stringify(originalLocations) !== JSON.stringify(locationsData);
@@ -433,6 +469,16 @@ const getActiveLocations = () => {
         >
           <Plus size={18} />
           Agregar servidor
+        </Button>
+
+        <Button
+          onClick={handleDeleteServer}
+          variant="ghost"
+          gradientColors="from-red-500 via-red-600 to-red-700"
+          className="flex items-center gap-2"
+        >
+          <Trash size={18} />
+          Eliminar este servidor
         </Button>
       </div>
 
@@ -567,7 +613,7 @@ const getActiveLocations = () => {
                 onChange={(e) => setNewServerName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    handleCreateServer();
+                    handleCreateServerAndRefresh();
                   }
                   if (e.key === 'Escape') {
                     setShowAddServerModal(false);
@@ -592,7 +638,7 @@ const getActiveLocations = () => {
                 Cancelar
               </Button>
               <Button
-                onClick={handleCreateServer}
+                onClick={handleCreateServerAndRefresh}
                 variant="ghost"
                 gradientColors="from-green-500 via-green-600 to-green-700"
               >

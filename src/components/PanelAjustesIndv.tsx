@@ -21,7 +21,7 @@ export const PanelAjustesIndv = forwardRef<
         path: initialData?.path || '/api/v1/ruta/del/recurso',
         method: initialData?.method || 'GET',
         schema: initialData?.schema ?? undefined,
-        statusCode: (initialData as any)?.statusCode || (initialData as any)?.status_code || 200,
+        status_code: (initialData as any)?.status_code || 200,
         headers: initialData?.headers || { 'Content-Type': 'application/json' },
         response: initialData?.response || '{"message": "success"}',
         chaosInjection: (initialData as EscenarioUI)?.chaosInjection,
@@ -211,8 +211,8 @@ export const PanelAjustesIndv = forwardRef<
         <FieldWithError error={validationErrors["status_code"]}>
           <StatusCode
             label ="Status Code"
-            value={escenario.statusCode}
-            onChange={(v) => handleStateChange('statusCode', v)}
+            value={escenario.status_code}
+            onChange={(v) => handleStateChange('status_code', v)}
           />
         </FieldWithError>
 

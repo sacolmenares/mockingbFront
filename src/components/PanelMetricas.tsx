@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "./Button";
+import { Info, CircleX } from 'lucide-react';
 
 
 let isStyleInjected = false;
@@ -38,14 +39,34 @@ export function PanelMetricas() {
   const [panels, setPanels] = useState(defaultPanels);
   const [filter] = useState("");
   const [timeRange, setTimeRange] = useState(timeRangeOptions[1].value);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   useEffect(() => {
     injectAnimationStyles();
+
+    const savedConfig = localStorage.getItem("dashboardConfig");
+    if (savedConfig) {
+      const { baseUrl, dashboardId, timeRange, panels } = JSON.parse(savedConfig);
+      setBaseUrl(baseUrl);
+      setDashboardId(dashboardId);
+      setTempBaseUrl(baseUrl);
+      setTempDashboardId(dashboardId);
+      setTimeRange(timeRange);
+      setPanels(panels);
+    }
   }, []);
 
   const aplicarCambios = () => {
     setBaseUrl(tempBaseUrl);
     setDashboardId(tempDashboardId);
+
+    // Guardar todo en localStorage
+    localStorage.setItem("dashboardConfig", JSON.stringify({
+      baseUrl: tempBaseUrl,
+      dashboardId: tempDashboardId,
+      timeRange,
+      panels
+    }));
   };
 
   const handlePanelIdChange = (uid: string, inputValue: string) => {
@@ -54,6 +75,14 @@ export function PanelMetricas() {
         panel.uid === uid ? { ...panel, id: 0 } : panel
       );
       setPanels(updatedPanels);
+
+      // Guardar en localStorage
+      localStorage.setItem("dashboardConfig", JSON.stringify({
+        baseUrl: tempBaseUrl,
+        dashboardId: tempDashboardId,
+        timeRange,
+        panels: updatedPanels
+      }));
       return;
     }
 
@@ -109,10 +138,78 @@ export function PanelMetricas() {
   };
 
   return (
-    <div className="bg-gray-100 dark:bg-gray-900 p-8 rounded-3xl shadow-xl max-w-7xl mx-auto">
+    <div className="bg-gray-100 dark:bg-gray-900 p-8 rounded-3xl shadow-xl max-w-7xl mx-auto relative">
+      <Button  onClick={() => {setShowInfoModal(true)}}
+      variant="ghost"
+      className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 
+      dark:text-gray-300 absolute top-4 right-4"
+      >
+        <Info size={24} />
+      </Button>
+      {showInfoModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-xl mx-4 relative max-h-[80vh] overflow-y-auto">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+            Cómo visualizar las métricas
+          </h2>
+
+          <p className="mb-3 text-gray-700 dark:text-gray-300">
+            Esta sección te permite visualizar métricas de tus dashboards de Grafana de manera rápida y organizada.
+          </p>
+
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">1. URL Base</h3>
+          <p className="mb-3 text-gray-700 dark:text-gray-300">
+            Por defecto es <code>http://localhost:3000</code>, ya que normalmente Grafana se ejecuta en tu computadora. <br />
+            Si tu servidor Grafana está en otra dirección, cámbiala aquí.
+          </p>
+
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">2. Dashboard ID</h3>
+          <p className="mb-3 text-gray-700 dark:text-gray-300">
+            Cada dashboard de Grafana tiene un ID único (por ejemplo: <code>addn4pp</code>). 
+            <br/>Coloca aquí el ID del dashboard que quieres monitorear.
+          </p>
+
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">3. Frecuencia de actualización</h3>
+          <p className="mb-3 text-gray-700 dark:text-gray-300">
+            Selecciona cada cuánto tiempo deseas actualizar los datos del panel: último minuto, última hora, últimas 24 horas, etc...
+          </p>
+
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">4. Paneles individuales</h3>
+          <p className="mb-3 text-gray-700 dark:text-gray-300">
+            Cada cuadro representa un panel de métricas específico (requests, latencia, errores, recursos).  <br />
+            - Ingresa el <strong>ID del panel</strong> correspondiente de Grafana.  <br />
+            - Puedes agregar nuevos paneles con<span className="font-bold text-green-600 dark:text-green-400"><strong> + Agregar Panel </strong></span>. <br />
+            - Para eliminar un panel, haz clic en ✕ (mínimo 3 paneles activos).
+          </p>
+
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">5. Visualización</h3>
+          <p className="mb-3 text-gray-700 dark:text-gray-300">
+            Cada panel se muestra como un <em>iframe</em> que carga el gráfico correspondiente desde Grafana. <br /> 
+            Puedes ver las métricas en tiempo real según el rango de tiempo seleccionado.
+          </p>
+
+          <p className="mb-3 text-gray-700 dark:text-gray-300">
+            Una vez realizados los cambios, haz clic en <span className="font-bold text-green-600 dark:text-blue-400"><strong>"✓ Aplicar Cambios"</strong></span> para actualizar el panel.
+          </p>
+
+      <div className="flex justify-end mt-6">
+        <Button
+          onClick={() => setShowInfoModal(false)}
+          variant="ghost"
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 
+          dark:text-gray-300 absolute top-4 right-4"
+        >
+          <CircleX size={20} />
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+
       <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-6 text-center">
-        Panel de Métricas
+        Métricas
       </h1>
+
 
 
       <div className="flex flex-col md:flex-row gap-4 mb-8 justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm">
@@ -183,7 +280,7 @@ export function PanelMetricas() {
                 Panel ID:
               </label>
               <input
-                className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg w-full text-sm text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600 outline-none bg-white/80 dark:bg-gray-800/80"
+                className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg w-20 text-sm text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600 outline-none bg-white/80 dark:bg-gray-800/80"
                 placeholder="Ingresa ID"
                 type="number"
                 min="1" 
