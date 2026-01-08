@@ -9,10 +9,8 @@ export const BaseLayout: React.FC = () => {
       <header className="flex-shrink-0">
         <PageHeader />
       </header>
-
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-   
       <main className="flex-1 bg-gray-50 dark:bg-slate-800/50 p-6 overflow-auto rounded-tl-2xl shadow-inner text-gray-900 dark:text-gray-100 transition-colors duration-300">
         <Outlet />
       </main>

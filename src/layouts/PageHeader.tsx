@@ -34,7 +34,7 @@ export function PageHeader() {
       }
     };
     verificarServidor();
-    const intervalo = setInterval(verificarServidor, 60000);
+    const intervalo = setInterval(verificarServidor, 5000);
     return () => clearInterval(intervalo);
   }, []);
 

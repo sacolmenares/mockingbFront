@@ -147,7 +147,7 @@ export function PanelMetricas() {
         <Info size={24} />
       </Button>
       {showInfoModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 fade-in fade-out">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-xl mx-4 relative max-h-[80vh] overflow-y-auto">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">
             Cómo visualizar las métricas
@@ -178,7 +178,7 @@ export function PanelMetricas() {
           <p className="mb-3 text-gray-700 dark:text-gray-300">
             Cada cuadro representa un panel de métricas específico (requests, latencia, errores, recursos).  <br />
             - Ingresa el <strong>ID del panel</strong> correspondiente de Grafana.  <br />
-            - Puedes agregar nuevos paneles con<span className="font-bold text-green-600 dark:text-green-400"><strong> + Agregar Panel </strong></span>. <br />
+            - Puedes agregar nuevos paneles con<span className="font-bold text-green-600 dark:text-green-400"><strong>" + Agregar Panel "</strong></span>. <br />
             - Para eliminar un panel, haz clic en ✕ (mínimo 3 paneles activos).
           </p>
 
@@ -189,7 +189,7 @@ export function PanelMetricas() {
           </p>
 
           <p className="mb-3 text-gray-700 dark:text-gray-300">
-            Una vez realizados los cambios, haz clic en <span className="font-bold text-green-600 dark:text-blue-400"><strong>"✓ Aplicar Cambios"</strong></span> para actualizar el panel.
+            Una vez realizados los cambios, haz clic en <span className="font-bold text-blue-600 dark:text-blue-400"><strong>" ✓ Aplicar Cambios "</strong></span> para actualizar el panel.
           </p>
 
       <div className="flex justify-end mt-6">
@@ -258,7 +258,7 @@ export function PanelMetricas() {
             className={`p-6 rounded-3xl shadow-lg border relative group transition-all duration-300 hover:-translate-y-1 ${panelBgClass(p.type)} animate-fadeInUp`}
           >
             <div className="flex justify-between items-start mb-4">
-               <h2 className="text-lg font-bold flex items-center gap-2 truncate">
+              <h2 className="text-lg font-bold flex items-center gap-2 truncate">
                 {p.title}
               </h2>
               

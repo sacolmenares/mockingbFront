@@ -1,15 +1,5 @@
 import { useEffect, useState } from "react";
-
-// Animación CSS
-const style = document.createElement("style");
-style.innerHTML = `
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
-`;
-document.head.appendChild(style);
+import { ChevronRight , ChevronLeft} from "lucide-react";
 
 interface Reporte {
   recepcion_id: string;
@@ -24,14 +14,12 @@ interface Reporte {
   [key: string]: any;
 }
 
-
-
 export function PanelReportes() {
   const [reportes, setReportes] = useState<Reporte[]>([]);
   const [filtro, setFiltro] = useState("");
   const [paginaActual, setPaginaActual] = useState(1);
-  const [porPagina] = useState(10); // número de filas por página
-  const [columnasVisibles, setColumnasVisibles] = useState<string[]>([
+  const [porPagina] = useState(10);
+  const [columnasVisibles] = useState<string[]>([
     "uuid",
     "recepcion_id",
     "sender_id",
@@ -43,150 +31,178 @@ export function PanelReportes() {
     "response_body",
   ]);
 
+  const [columnasFiltro, setColumnasFiltro] = useState<string[]>([]);
 
-  // Obtener datos de la API
+  const columnas = [
+    "uuid",
+    "recepcion_id",
+    "sender_id",
+    "timestamp",
+    "request_endpoint",
+    "request_method",
+    "response_status_code",
+    "request_body",
+    "response_body",
+  ];
+
+  // Fetch de datos
   const fetchReportes = async () => {
     try {
-      const res = await fetch("/api/mock/data"); // Cambia a tu endpoint real
+      const res = await fetch("/api/mock/data");
       if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
       const data = await res.json();
-  
-      // ✅ Agregamos esta validación para evitar el error
-      if (Array.isArray(data)) {
-        setReportes(data);
-      } else {
-        console.warn("El endpoint no devolvió un arreglo. Se usará vacío.");
-        setReportes([]); // evita que reportes sea null
-      }
+      setReportes(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error al obtener reportes:", error);
-      setReportes([]); // también evita el error si falla el fetch
+      console.error(error);
+      setReportes([]);
     }
   };
-  
 
   useEffect(() => {
     fetchReportes();
   }, []);
 
-
-  // Filtrado de datos
-  const reportesFiltrados = (reportes || []).filter(r =>
-    columnasVisibles.some(c => r[c]?.toString().toLowerCase().includes(filtro.toLowerCase()))
-  );
+  // Filtrado
+  const reportesFiltrados = reportes.filter(r => {
+    if (!filtro) return true;
+    const texto = filtro.toLowerCase();
+    if (columnasFiltro.length > 0) {
+      return columnasFiltro.some(c =>
+        r[c]?.toString().toLowerCase().includes(texto)
+      );
+    } else {
+      return columnasVisibles.some(c =>
+        r[c]?.toString().toLowerCase().includes(texto)
+      );
+    }
+  });
 
   const indiceUltimo = paginaActual * porPagina;
   const indicePrimero = indiceUltimo - porPagina;
   const reportesPagina = reportesFiltrados.slice(indicePrimero, indiceUltimo);
   const totalPaginas = Math.ceil(reportesFiltrados.length / porPagina);
 
-
-  // Alternar visibilidad de columnas
-  const toggleColumna = (col: string) => {
-    setColumnasVisibles(prev =>
-      prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
-    );
-  };
-
   return (
-    <div className="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-8 rounded-2xl shadow-2xl max-w-7xl mx-auto animate-fadeIn">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Historial de reportes</h1>
-      <div className="w-full mb-5">
+    <div className="max-w-7xl mx-auto p-6 bg-gray-50 dark:bg-gray-900 rounded-2xl shadow-lg">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
+        Historial de Reportes
+      </h1>
+
+
+      <div className="mb-4">
         <input
           type="text"
-          placeholder="Buscar en todos los reportes..."
-          className="w-full p-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 text-base shadow-sm"
+          placeholder="Buscar..."
+          className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
           value={filtro}
           onChange={e => setFiltro(e.target.value)}
         />
       </div>
 
 
-      <div className="flex flex-nowrap overflow-x-auto gap-2 pb-3 mb-4">
-        {[
-          "uuid",
-          "recepcion_id",
-          "sender_id",
-          "timestamp",
-          "request_endpoint",
-          "request_method",
-          "response_status_code",
-          "request_body",
-          "response_body",
-        ].map(col => (
+      <div className="flex flex-wrap gap-2 mb-4">
+        {columnas.map(col => (
           <button
             key={col}
-            className={`text-white bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 
-                        hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-blue-300 
-                        dark:focus:ring-blue-800 font-medium rounded-lg text-sm px-3 py-1.5 
-                        text-center transition-all duration-300 whitespace-nowrap ${
-                          !columnasVisibles.includes(col) ? "opacity-60 hover:opacity-100" : ""
-                        }`}
-            onClick={() => toggleColumna(col)}
+            className={`px-4 py-1 rounded-full text-sm font-medium transition-all
+              ${
+                columnasFiltro.includes(col)
+                  ? "bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-md"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-500 hover:via-blue-600 hover:to-blue-700 hover:text-white"
+              }`}
+            onClick={() => {
+              setColumnasFiltro(prev =>
+                prev.includes(col)
+                  ? prev.filter(c => c !== col)
+                  : [...prev, col]
+              );
+            }}
           >
-            {col}
+            {col.replace(/_/g, " ")}
           </button>
+        
         ))}
       </div>
 
 
-
-      <div className="overflow-x-auto mt-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
+      <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-xl shadow-md">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-700">
+          <thead className="bg-gray-100 dark:bg-gray-700">
             <tr>
               {columnasVisibles.map(col => (
                 <th
                   key={col}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
                   {col.replace(/_/g, " ")}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-          {reportesPagina.map((reporte, i) => (
-              <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {reportesPagina.map((r, i) => (
+              <tr
+                key={i}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
                 {columnasVisibles.map(col => (
-                  <td key={col} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                    {col === "request_body" || col === "response_body"
-                      ? String(reporte[col]).slice(0, 80) + "..."
-                      : String(reporte[col])}
+                  <td
+                    key={col}
+                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200"
+                  >
+                    {["request_body", "response_body"].includes(col)
+                      ? String(r[col]).slice(0, 80) + "..."
+                      : r[col]}
                   </td>
                 ))}
               </tr>
             ))}
             {reportesFiltrados.length === 0 && (
               <tr>
-                <td colSpan={columnasVisibles.length} className="px-6 py-4 text-center text-gray-400 dark:text-gray-500">
+                <td
+                  colSpan={columnasVisibles.length}
+                  className="px-6 py-4 text-center text-gray-400 dark:text-gray-500"
+                >
                   No se encontraron resultados
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-              <div className="flex justify-center items-center mt-4 gap-2">
+      </div>
+
+      <div className="flex justify-center items-center gap-2 mt-4 flex-wrap">
         <button
           onClick={() => setPaginaActual(prev => Math.max(prev - 1, 1))}
           disabled={paginaActual === 1}
-          className="px-3 py-1 bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg disabled:opacity-50"
+          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
         >
-          ← Anterior
+          <ChevronLeft />
         </button>
 
-        <span className="text-gray-700 dark:text-gray-300 text-sm">
-          Página {paginaActual} de {totalPaginas}
-        </span>
+        {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
+          <button
+            key={num}
+            onClick={() => setPaginaActual(num)}
+            className={`px-3 py-1 rounded-lg transition-colors
+              ${
+                num === paginaActual
+                  ? "bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-md"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:via-blue-600 hover:to-blue-700 hover:text-white"
+              }`}
+            >
+            {num}
+          </button>
+        
+        ))}
 
         <button
           onClick={() => setPaginaActual(prev => Math.min(prev + 1, totalPaginas))}
           disabled={paginaActual === totalPaginas}
-          className="px-3 py-1 bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg disabled:opacity-50"
+          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
         >
-          Siguiente →
+          <ChevronRight />
         </button>
-      </div>
       </div>
     </div>
   );

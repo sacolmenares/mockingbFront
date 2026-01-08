@@ -4,7 +4,7 @@ import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
 import { Button } from "./Button";
 import { Dropdown } from "./Dropdown";
 import YAML from "yaml";
-import { CircleX, Plus, Trash } from 'lucide-react';
+import { CircleX, Plus, Trash, Menu, CircleCheck } from 'lucide-react';
 import { mapBackendToUI } from "../mapeo/mapeoDatos";
 import type { EscenarioUI } from "../types/escenarioUI";
 import { Card } from "../components/Card"
@@ -114,7 +114,15 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
     { label: "CTS", value: "CTS" },
   ]);
   const [showAddServerModal, setShowAddServerModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [newServerName, setNewServerName] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  const [showCreatedServer, setShowCreatedServer] = useState(false);
+  const [createdServerName, setCreatedServerName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [deletedServerName, setDeletedServerName] = useState<string | null>(null);
   const agregarEscenario = () => {setEscenarios([...escenarios, { id: Date.now() }]);};
   const eliminarEscenario = (id: number) => {
     setEliminando(id);
@@ -124,6 +132,16 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       setEliminando(null);
     }, 400); 
   };
+  const selectedServerLabel = serverOptions.find(s => s.value === selectedServer)?.label ?? selectedServer;
+  const handleServerChange = (newServer: string) => { //Para el query params
+    setSelectedServer(newServer);
+    const url = new URL(window.location.href);
+    url.searchParams.set("server", newServer);
+    window.history.replaceState({}, "", url.toString());
+    fetchServerData(newServer);
+  };
+  
+
 
 
 // Ejecutar GET al seleccionar el nombre 
@@ -177,23 +195,28 @@ const refreshDataAfterSave = (serverName: string) =>
   });
 
 
-useEffect(() => {
-  const loadServers = async () => {
-    const servers = await getAvailableServers(defaultServerList);
-    setServerOptions(servers);
-    if (servers.length > 0 && !servers.find(s => s.value === selectedServer)) {
-      setSelectedServer(servers[0].value);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const serverFromQuery = params.get("server");
+  
+    const loadServers = async () => {
+      const servers = await getAvailableServers(defaultServerList);
+      setServerOptions(servers);
+  
+      let initialServer = serverFromQuery?.toLowerCase() || servers[0]?.value;
+      setSelectedServer(initialServer);
+  
       const endpoints: Record<string, string> = {
         Bancrecer: "bancrecer",
         Sample: "sample",
         CTS: "cts",
       };
-      const serverName = endpoints[servers[0].value] || servers[0].value.toLowerCase();
+      const serverName = endpoints[initialServer] || initialServer;
       await fetchServerData(serverName);
-    }
-  };
-  loadServers();
-}, []);
+    };
+    loadServers();
+  }, []);
+  
 
 
 const handleCreateServer = async () => {
@@ -213,8 +236,6 @@ const handleCreateServer = async () => {
         ]
       }
     };
-
-   
     const postResponse = await fetch(`/api/mock/config?server_name=${validName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -240,9 +261,10 @@ const handleCreateServer = async () => {
     });
 
     if (!putResponse.ok) throw new Error(`Error al actualizar servidor (PUT ${putResponse.status})`);
-
-    alert(`Servidor "${validName}" creado y configurado correctamente`);
-
+    setCreatedServerName(validName);
+    setShowCreatedServer(true);
+    setTimeout(()=> setShowCreatedServer(false),8000);
+    //alert(`Servidor "${validName}" creado y configurado correctamente`);
     await refreshDataAfterSave(validName);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
@@ -253,13 +275,24 @@ const handleCreateServer = async () => {
 const handleCreateServerAndRefresh = async () => {
   const serverName = newServerName.trim();
   if (!serverName) return alert("Debes ingresar un nombre de servidor");
+  
+  try {
+    setIsSaving(true);                 
+    await handleCreateServer();         
+    setShowAddServerModal(false);       
+    setNewServerName('');
 
-  await handleCreateServer();               
-  setShowAddServerModal(false);           
-  setNewServerName('');                   
-  await refreshDataAfterSave(serverName);  
-  window.location.reload();              
-};
+    setTimeout(() => {
+      setIsSaving(false);
+      window.location.href = `${window.location.pathname}?server=${encodeURIComponent(serverName)}`;
+    }, 4000);
+
+  } catch (error) {
+    setIsSaving(false);
+    const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
+    alert(errorMessage);
+  }
+}
 
 
 const handleDeleteServer = async () => {
@@ -268,16 +301,25 @@ const handleDeleteServer = async () => {
       method: "DELETE",
     });
     if (!response.ok) throw new Error(`Error al eliminar servidor (DELETE ${response.status})`);
-    alert(`Servidor "${selectedServer}" eliminado correctamente`);
-    await refreshDataAfterSave(selectedServer);
-    const updatedServers = await getAvailableServers(serverOptions);
-    setServerOptions(updatedServers);
-    setSelectedServer(updatedServers[0].value);
+    
+    setDeletedServerName(selectedServer); //Para que no actualice durante la alerta
+    setShowDeleteModal(false); 
+    setShowDeleteAlert(true);  
+    setIsSaving(true);
+    setTimeout(async () => {
+      setShowDeleteAlert(false); 
+      setIsSaving(false);
+      await refreshDataAfterSave(selectedServer);
+      const updatedServers = await getAvailableServers(serverOptions);
+      setServerOptions(updatedServers);
+      setSelectedServer(updatedServers[0]?.value || '');
+      window.location.reload();
+    }, 5000); 
   }
   catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Error al eliminar el servidor.";
     alert(errorMessage);
-  }
+  }              
 };
 
 const getActiveLocations = () => {
@@ -350,6 +392,13 @@ const getActiveLocations = () => {
 
   return (     
   <div className="p-8 space-y-6"> 
+    {isSaving && (
+      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40">
+        <div className="flex flex-col items-center gap-2">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-green-600"></div>
+        </div>
+      </div>
+    )}
     <Card title="">
     <div className="w-full flex items-center justify-between mt-4">
         <h2 className="text-2xl font-bold dark:text-white">
@@ -419,9 +468,18 @@ const getActiveLocations = () => {
           if (!response.ok)
             throw new Error(`Error HTTP: ${response.status}`);
           if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-          alert("Configuración del servidor actualizada correctamente");
+          setShowSuccessAlert(true);
+      
+          if (response.ok) {
+            setShowSuccessAlert(true);  
+            setIsSaving(true);  
+            setTimeout(() => {
+            setShowSuccessAlert(false);
+            setIsSaving(false);
+            }, 4000);
+          }          
+          //alert(`Configuración del servidor "${selectedServerLabel}" actualizada correctamente`);
           await refreshDataAfterSave(serverName);
-          
           const updatedServers = await getAvailableServers(serverOptions);
           setServerOptions(updatedServers);
         } catch (error) {
@@ -434,52 +492,129 @@ const getActiveLocations = () => {
     >
       Guardar cambios
     </Button>
+    {showSuccessAlert && (
+      <div
+        className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
+        role="alert"
+      >
+        <span><CircleCheck size={20}/> </span>
+        <p className="text-xl font-italic dark:text-white">
+          Configuración del servidor{" "}
+          <span className="font-semibold">{selectedServerLabel}</span>{" "}
+          actualizada correctamente
+        </p>
+      </div>
+    )}
+
+    {showCreatedServer && (
+      <div
+        className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
+        role="alert"
+      >
+        <span><CircleCheck size={20}/> </span>
+        <p className="text-xl font-italic dark:text-white">
+          Servidor{" "}
+          <span className="font-semibold">{createdServerName}</span>{" "}
+          creado y configurado correctamente
+        </p>
+      </div>
+    )}
     </div> 
     </Card>
-    {/**
-    </div><div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200"> 
-    */}
     <div className="flex justify-between items-center mb-4">
       <div className="flex items-center gap-3">
-        <Dropdown 
-          options={serverOptions}
-          value={selectedServer}
-          onChange={(val) => {
-            setSelectedServer(val);
-          
-            const endpoints: Record<string, string> = {
-              Bancrecer: "bancrecer",
-              Sample: "sample",
-              CTS: "cts",
-            };
-          
-            if (endpoints[val]) {
-              fetchServerData(endpoints[val]);
-            } else {
-              fetchServerData(val.toLowerCase());
-            }
-          }}
-        />
-        
-        <Button
-          onClick={() => setShowAddServerModal(true)}
-          variant="ghost"
-          gradientColors="from-green-500 via-green-600 to-green-700"
-          className="flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Agregar servidor
-        </Button>
+      <Dropdown 
+        options={serverOptions}
+        value={selectedServer}
+        onChange={(val) => handleServerChange(val)}
+      />
 
         <Button
-          onClick={handleDeleteServer}
-          variant="ghost"
-          gradientColors="from-red-500 via-red-600 to-red-700"
-          className="flex items-center gap-2"
+        onClick={() => setShowDropdown(prev => !prev)}
+        variant="ghost"
         >
-          <Trash size={18} />
-          Eliminar este servidor
+          <Menu />
         </Button>
+        {showDropdown && (
+          <li className="accordion-item flex" id="menu-app-2">
+          <div id="menu-app-collapse-2" 
+          className={`accordion-content w-full space-y-0.5 overflow-hidden transition-[height] duration-300 ${
+            showDropdown ? "block" : "hidden"
+          }`}
+          aria-labelledby="menu-app-2" role="region" >
+            <ul className="accordion flex gap-4">
+              <li>
+              <Button
+                onClick={() => setShowAddServerModal(true)}
+                variant="ghost"
+                gradientColors="from-green-500 via-green-600 to-green-700"
+                className="flex items-center gap-2"
+              >
+                <Plus size={18} />
+                Agregar servidor
+              </Button>
+              </li>
+              <li>
+              <Button
+                onClick={() => {setShowDeleteModal(true)}}
+                variant="ghost"
+                gradientColors="from-red-500 via-red-600 to-red-700"
+                className="flex items-center gap-2"
+              >
+                <Trash size={18} />
+                Eliminar este servidor
+              </Button>
+              {showDeleteModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+                <h3 className="text-2xl text-gray-900 dark:text-white mb-4 text-center">
+                  ¿Estás seguro de que quieres eliminar
+                  <br />
+                  <span className="font-semibold text-red-500">
+                    {selectedServerLabel}
+                  </span>
+                  ?
+                </h3>
+                <div className="flex gap-3 justify-center">
+                    <Button
+                      onClick={() => {
+                        setShowDeleteModal(false);
+                      }}
+                      variant="ghost"
+                      gradientColors="from-gray-400 via-gray-500 to-gray-600"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={handleDeleteServer}
+                      variant="ghost"
+                      gradientColors="from-blue-500 via-blue-600 to-blue-700"
+                    >
+                      Sí, eliminar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}        
+                  {showDeleteAlert && (
+                    <div
+                      className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
+                      role="alert"
+                    >
+                      <span><CircleCheck size={20}/> </span>
+                      <p className="text-xl font-italic dark:text-white">
+                        Configuración del servidor{" "}
+                        <span className="font-semibold">{deletedServerName}</span>{" "}
+                        eliminada correctamente
+                      </p>
+                    </div>
+                  )}
+              </li>
+            </ul>
+          </div>
+        </li>
+        )
+        }
       </div>
 
     </div>
@@ -531,12 +666,11 @@ const getActiveLocations = () => {
             <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Logger Path</label>
             <input type="text" value={serverConfig.logger_path} onChange={(e) => handleServerConfigChange('logger_path', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
           </div>
-           <div>
+          <div>
             <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Logger</label>
             <input type="text" value={serverConfig.logger} onChange={(e) => handleServerConfigChange('logger', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
           </div>
         </div>
- 
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -586,15 +720,15 @@ const getActiveLocations = () => {
         </div>
       ))}
 
-       <div className="pt-6 flex justify-start">
-         <Button
-           variant="ghost"
-           gradientColors="from-green-500 via-green-600 to-green-700"
-           onClick={agregarEscenario}
-         >
-           + Agregar escenario
-         </Button>
-       </div>
+      <div className="pt-6 flex justify-start">
+        <Button
+          variant="ghost"
+          gradientColors="from-green-500 via-green-600 to-green-700"
+          onClick={agregarEscenario}
+        >
+          + Agregar escenario
+        </Button>
+      </div>
 
       {showAddServerModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
