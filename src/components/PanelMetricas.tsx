@@ -41,33 +41,53 @@ export function PanelMetricas() {
   const [timeRange, setTimeRange] = useState(timeRangeOptions[1].value);
   const [showInfoModal, setShowInfoModal] = useState(false);
 
+  //Cargar datos desde la bd
+  const fetchMetricsConfig = async () => {
+    try {
+      const res = await fetch("/api/mock/config/metrics");
+      if (!res.ok) return;
+  
+      const data = await res.json();
+      if (!data || Object.keys(data).length === 0) return;
+  
+      setBaseUrl(data.base_url);
+      setDashboardId(data.dashboard_id);
+      setTempBaseUrl(data.base_url);
+      setTempDashboardId(data.dashboard_id);
+      setTimeRange(data.time_range);
+      setPanels(data.panels);
+    } catch (err) {
+      console.error("Error cargando configuración de métricas", err);
+    }
+  };
+  
+
   useEffect(() => {
     injectAnimationStyles();
-
-    const savedConfig = localStorage.getItem("dashboardConfig");
-    if (savedConfig) {
-      const { baseUrl, dashboardId, timeRange, panels } = JSON.parse(savedConfig);
-      setBaseUrl(baseUrl);
-      setDashboardId(dashboardId);
-      setTempBaseUrl(baseUrl);
-      setTempDashboardId(dashboardId);
-      setTimeRange(timeRange);
-      setPanels(panels);
-    }
+    fetchMetricsConfig();
   }, []);
+  
 
-  const aplicarCambios = () => {
+  const aplicarCambios = async () => {
     setBaseUrl(tempBaseUrl);
     setDashboardId(tempDashboardId);
-
-    // Guardar todo en localStorage
-    localStorage.setItem("dashboardConfig", JSON.stringify({
-      baseUrl: tempBaseUrl,
-      dashboardId: tempDashboardId,
-      timeRange,
-      panels
-    }));
+  
+    try {
+      await fetch("/api/mock/config/metrics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          base_url: tempBaseUrl,
+          dashboard_id: tempDashboardId,
+          time_range: timeRange,
+          panels: panels,
+        }),
+      });
+    } catch (err) {
+      console.error("Error guardando métricas", err);
+    }
   };
+  
 
   const handlePanelIdChange = (uid: string, inputValue: string) => {
     if (inputValue === "") {
