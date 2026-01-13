@@ -4,7 +4,7 @@ import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
 import { Button } from "./Button";
 import { Dropdown } from "./Dropdown";
 import YAML from "yaml";
-import { CircleX, Plus, Trash, Menu, CircleCheck } from 'lucide-react';
+import { CircleX, Plus, Trash, Menu, CircleCheck, Pencil } from 'lucide-react';
 import { mapBackendToUI } from "../mapeo/mapeoDatos";
 import type { EscenarioUI } from "../types/escenarioUI";
 import { Card } from "../components/Card"
@@ -50,7 +50,7 @@ interface ServerOption {
   value: string;
 }
 
-const getServerConfigFromAPI = async (serverName: string) => { 
+const getServerConfigFromAPI = async (serverName: string) => {
   const res = await fetch(`/api/mock/config?server_name=${serverName}`);
   if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
   return res.json();
@@ -100,8 +100,8 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       [field]: value,
     }));
   };
-  
-  
+
+
   const [escenarios, setEscenarios] = useState<Escenario[]>([{ id: Date.now() }]);
   const panelRefs = useRef<{ [key: number]: PanelAjustesIndvRef | null }>({});
   const [eliminando, setEliminando] = useState<number | null>(null);
@@ -116,6 +116,8 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   const [showAddServerModal, setShowAddServerModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [newServerName, setNewServerName] = useState('');
+  const [showEditServerModal, setShowEditServerModal] = useState(false);
+  const [newEditedServerName, setNewEditedServerName] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
@@ -123,14 +125,14 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   const [createdServerName, setCreatedServerName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [deletedServerName, setDeletedServerName] = useState<string | null>(null);
-  const agregarEscenario = () => {setEscenarios([...escenarios, { id: Date.now() }]);};
+  const agregarEscenario = () => { setEscenarios([...escenarios, { id: Date.now() }]); };
   const eliminarEscenario = (id: number) => {
     setEliminando(id);
     setTimeout(() => {
       setEscenarios(escenarios.filter((e) => e.id !== id));
       delete panelRefs.current[id];
       setEliminando(null);
-    }, 400); 
+    }, 400);
   };
   const selectedServerLabel = serverOptions.find(s => s.value === selectedServer)?.label ?? selectedServer;
   const handleServerChange = (newServer: string) => { //Para el query params
@@ -140,16 +142,16 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
     window.history.replaceState({}, "", url.toString());
     fetchServerData(newServer);
   };
-  
 
 
 
-// Ejecutar GET al seleccionar el nombre 
-const fetchServerData = async (serverName: string) => {
-  try {
-    const data = await getServerConfigFromAPI(serverName);
-    console.log("Datos que vienen del backend:", data);
-    const server: any = data.server_config || data?.http?.servers?.[0];
+
+  // Ejecutar GET al seleccionar el nombre 
+  const fetchServerData = async (serverName: string) => {
+    try {
+      const data = await getServerConfigFromAPI(serverName);
+      console.log("Datos que vienen del backend:", data);
+      const server: any = data.server_config || data?.http?.servers?.[0];
       if (server) {
         setServerConfig({
           listen: server.listen ?? defaultServerConfig.listen,
@@ -165,13 +167,13 @@ const fetchServerData = async (serverName: string) => {
         });
       }
 
-    const locations = data?.http?.servers?.[0]?.location;
+      const locations = data?.http?.servers?.[0]?.location;
       if (Array.isArray(locations) && locations.length > 0) {
         const nuevosEscenarios = locations.map((esc: any) => ({
           id: Date.now() + Math.random(),
           data: mapBackendToUI(esc),
-          }));
-        setEscenarios(nuevosEscenarios); 
+        }));
+        setEscenarios(nuevosEscenarios);
       } else {
         setEscenarios([{ id: Date.now() }]);
       }
@@ -183,29 +185,29 @@ const fetchServerData = async (serverName: string) => {
       });
       setEscenarios([{ id: Date.now() }]);
     }
-};
+  };
 
 
-const refreshDataAfterSave = (serverName: string) =>
-  new Promise<void>((resolve) => {
-    setTimeout(async () => {
-      await fetchServerData(serverName);
-      resolve();
-    }, 500);
-  });
+  const refreshDataAfterSave = (serverName: string) =>
+    new Promise<void>((resolve) => {
+      setTimeout(async () => {
+        await fetchServerData(serverName);
+        resolve();
+      }, 500);
+    });
 
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const serverFromQuery = params.get("server");
-  
+
     const loadServers = async () => {
       const servers = await getAvailableServers(defaultServerList);
       setServerOptions(servers);
-  
+
       let initialServer = serverFromQuery?.toLowerCase() || servers[0]?.value;
       setSelectedServer(initialServer);
-  
+
       const endpoints: Record<string, string> = {
         Bancrecer: "bancrecer",
         Sample: "sample",
@@ -216,113 +218,152 @@ const refreshDataAfterSave = (serverName: string) =>
     };
     loadServers();
   }, []);
-  
 
 
-const handleCreateServer = async () => {
-  try {
-    const validName = newServerName.trim();
-    if (!validName) throw new Error("Debes ingresar un nombre de servidor");
 
-    const payloadPost = {
-      http: {
-        servers: [
-          {
-            name: validName,
-            version: "0.0.1",
-            logger: true,
-            logger_path: `./log/${validName.toLowerCase()}`,
-          }
-        ]
-      }
-    };
-    const postResponse = await fetch(`/api/mock/config?server_name=${validName}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payloadPost),
-    });
+  const handleCreateServer = async () => {
+    try {
+      const validName = newServerName.trim();
+      if (!validName) throw new Error("Debes ingresar un nombre de servidor");
 
-    if (!postResponse.ok) throw new Error(`Error al crear servidor (POST ${postResponse.status})`);
+      const payloadPost = {
+        http: {
+          servers: [
+            {
+              name: validName,
+              version: "0.0.1",
+              logger: true,
+              logger_path: `./log/${validName.toLowerCase()}`,
+            }
+          ]
+        }
+      };
+      const postResponse = await fetch(`/api/mock/config?server_name=${validName}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payloadPost),
+      });
 
-    const payloadPut = {
-      http: {
-        servers: [
-          {
-            listen: 1111
-          }
-        ]
-      }
-    };
+      if (!postResponse.ok) throw new Error(`Error al crear servidor (POST ${postResponse.status})`);
 
-    const putResponse = await fetch(`/api/mock/config?server_name=${validName}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payloadPut),
-    });
+      const payloadPut = {
+        http: {
+          servers: [
+            {
+              listen: 1111
+            }
+          ]
+        }
+      };
 
-    if (!putResponse.ok) throw new Error(`Error al actualizar servidor (PUT ${putResponse.status})`);
-    setCreatedServerName(validName);
-    setShowCreatedServer(true);
-    setTimeout(()=> setShowCreatedServer(false),8000);
-    //alert(`Servidor "${validName}" creado y configurado correctamente`);
-    await refreshDataAfterSave(validName);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
-    alert(errorMessage);
-  }
-};
+      const putResponse = await fetch(`/api/mock/config?server_name=${validName}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payloadPut),
+      });
 
-const handleCreateServerAndRefresh = async () => {
-  const serverName = newServerName.trim();
-  if (!serverName) return alert("Debes ingresar un nombre de servidor");
-  
-  try {
-    setIsSaving(true);                 
-    await handleCreateServer();         
-    setShowAddServerModal(false);       
-    setNewServerName('');
+      if (!putResponse.ok) throw new Error(`Error al actualizar servidor (PUT ${putResponse.status})`);
+      setCreatedServerName(validName);
+      setShowCreatedServer(true);
+      setTimeout(() => setShowCreatedServer(false), 8000);
+      //alert(`Servidor "${validName}" creado y configurado correctamente`);
+      await refreshDataAfterSave(validName);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
+      alert(errorMessage);
+    }
+  };
 
-    setTimeout(() => {
+  const handleCreateServerAndRefresh = async () => {
+    const serverName = newServerName.trim();
+    if (!serverName) return alert("Debes ingresar un nombre de servidor");
+
+    try {
+      setIsSaving(true);
+      await handleCreateServer();
+      setShowAddServerModal(false);
+      setNewServerName('');
+
+      setTimeout(() => {
+        setIsSaving(false);
+        window.location.href = `${window.location.pathname}?server=${encodeURIComponent(serverName)}`;
+      }, 4000);
+
+    } catch (error) {
       setIsSaving(false);
-      window.location.href = `${window.location.pathname}?server=${encodeURIComponent(serverName)}`;
-    }, 4000);
-
-  } catch (error) {
-    setIsSaving(false);
-    const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
-    alert(errorMessage);
+      const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
+      alert(errorMessage);
+    }
   }
-}
 
 
-const handleDeleteServer = async () => {
-  try {
-    const response = await fetch(`/api/mock/config?server_name=${selectedServer}`, {
-      method: "DELETE",
-    });
-    if (!response.ok) throw new Error(`Error al eliminar servidor (DELETE ${response.status})`);
-    
-    setDeletedServerName(selectedServer); //Para que no actualice durante la alerta
-    setShowDeleteModal(false); 
-    setShowDeleteAlert(true);  
-    setIsSaving(true);
-    setTimeout(async () => {
-      setShowDeleteAlert(false); 
+  const handleDeleteServer = async () => {
+    try {
+      const response = await fetch(`/api/mock/config?server_name=${selectedServer}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error(`Error al eliminar servidor (DELETE ${response.status})`);
+
+      setDeletedServerName(selectedServer); //Para que no actualice durante la alerta
+      setShowDeleteModal(false);
+      setShowDeleteAlert(true);
+      setIsSaving(true);
+      setTimeout(async () => {
+        setShowDeleteAlert(false);
+        setIsSaving(false);
+        await refreshDataAfterSave(selectedServer);
+        const updatedServers = await getAvailableServers(serverOptions);
+        setServerOptions(updatedServers);
+        setSelectedServer(updatedServers[0]?.value || '');
+        window.location.reload();
+      }, 5000);
+    }
+    catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al eliminar el servidor.";
+      alert(errorMessage);
+    }
+  };
+
+  const handleRenameServer = async () => {
+    const validName = newEditedServerName.trim();
+    if (!validName) return alert("Debes ingresar un nuevo nombre");
+
+    try {
+      setIsSaving(true);
+      const response = await fetch('/api/mock/config/rename', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          old_name: selectedServer,
+          new_name: validName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al renombrar servidor (POST ${response.status})`);
+      }
+
+      setShowEditServerModal(false);
+      setNewEditedServerName('');
+      setShowSuccessAlert(true);
+
+      setTimeout(async () => {
+        setShowSuccessAlert(false);
+        setIsSaving(false);
+        // Recargar con el nuevo nombre seleccionado
+        window.location.href = `${window.location.pathname}?server=${encodeURIComponent(validName)}`;
+      }, 3000);
+
+    } catch (error) {
       setIsSaving(false);
-      await refreshDataAfterSave(selectedServer);
-      const updatedServers = await getAvailableServers(serverOptions);
-      setServerOptions(updatedServers);
-      setSelectedServer(updatedServers[0]?.value || '');
-      window.location.reload();
-    }, 5000); 
-  }
-  catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Error al eliminar el servidor.";
-    alert(errorMessage);
-  }              
-};
+      const errorMessage = error instanceof Error ? error.message : "Error al renombrar el servidor.";
+      alert(errorMessage);
+    }
+  };
 
-const getActiveLocations = () => {
+  const getActiveLocations = () => {
     const escenariosActivos = escenarios
       .map(escenario => {
         const ref = panelRefs.current[escenario.id];
@@ -338,12 +379,12 @@ const getActiveLocations = () => {
         return data;
       })
       .filter((data): data is any => data !== null && typeof data === "object");
-  
+
     if (escenariosActivos.length === 0) {
       console.warn("No se encontraron escenarios activos válidos.");
       return [];
     }
-  
+
     escenariosActivos.forEach((escenario: any) => {
       if (escenario?.chaos_injection) {
         const chaos = escenario.chaos_injection;
@@ -361,7 +402,7 @@ const getActiveLocations = () => {
 
       if (escenario?.async) {
         const { url, method } = escenario.async;
-      
+
         if (!url || !method) {
           throw new Error(
             `El escenario "${escenario.path || "(sin path)"}" tiene la opción asíncrona activa pero faltan URL o Method.`
@@ -369,7 +410,7 @@ const getActiveLocations = () => {
         }
       }
     });
-  
+
     const escenariosOrdenados = escenariosActivos.map((esc: any) => {
       const escenarioCompleto: any = { ...esc };
 
@@ -379,251 +420,264 @@ const getActiveLocations = () => {
           body: escenarioCompleto.async.body ?? ""
         };
       }
-      
+
       return escenarioCompleto;
     });
     return escenariosOrdenados;
   };
-  
-  
-  
-  
-  
 
-  return (     
-  <div className="p-8 space-y-6"> 
-    {isSaving && (
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40">
-        <div className="flex flex-col items-center gap-2">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-green-600"></div>
+
+
+
+
+
+  return (
+    <div className="p-8 space-y-6">
+      {isSaving && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40">
+          <div className="flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-green-600"></div>
+          </div>
         </div>
-      </div>
-    )}
-    <Card title="">
-    <div className="w-full flex items-center justify-between mt-4">
-        <h2 className="text-2xl font-bold dark:text-white">
-        Configuración del Servidor
-        </h2>
+      )}
+      <Card title="">
+        <div className="w-full flex items-center justify-between mt-4">
+          <h2 className="text-2xl font-bold dark:text-white">
+            Configuración del Servidor
+          </h2>
 
-    <Button
-      onClick={async () => {
-        try {
-          const serverName = selectedServer.trim().toLowerCase(); 
+          <Button
+            onClick={async () => {
+              try {
+                const serverName = selectedServer.trim().toLowerCase();
 
-          const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
-          //console.log("YAML original obtenido:\n", originalYaml);
- 
-          const doc = YAML.parseDocument(originalYaml);
+                const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
+                //console.log("YAML original obtenido:\n", originalYaml);
 
-          const locationsData = getActiveLocations();
+                const doc = YAML.parseDocument(originalYaml);
 
-          const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
-          const originalLocationsRaw = doc.getIn(["http", "servers", 0, "location"]);
-          const originalLocations: any[] = Array.isArray(originalLocationsRaw) ? originalLocationsRaw : [];
+                const locationsData = getActiveLocations();
 
-          const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
+                const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
+                const originalLocationsRaw = doc.getIn(["http", "servers", 0, "location"]);
+                const originalLocations: any[] = Array.isArray(originalLocationsRaw) ? originalLocationsRaw : [];
 
-          
-          //const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
-          for (const key of serverKeys) {
-            const prevVal = originalServer?.[key] ?? null;
-            let nextVal: string | number | boolean | null = serverConfig[key]; 
+                const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
 
-          // Si el usuario ingresa manualmente un valor, se convierte a string
-            if (key === "logger") {
-              if (typeof nextVal === "string") {
-                if (nextVal.toLowerCase() === "true") nextVal = true;
-                else if (nextVal.toLowerCase() === "false") nextVal = false;
+
+                //const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
+                for (const key of serverKeys) {
+                  const prevVal = originalServer?.[key] ?? null;
+                  let nextVal: string | number | boolean | null = serverConfig[key];
+
+                  // Si el usuario ingresa manualmente un valor, se convierte a string
+                  if (key === "logger") {
+                    if (typeof nextVal === "string") {
+                      if (nextVal.toLowerCase() === "true") nextVal = true;
+                      else if (nextVal.toLowerCase() === "false") nextVal = false;
+                    }
+                  }
+
+                  if (prevVal !== nextVal) {
+                    doc.setIn(["http", "servers", 0, key], nextVal);
+                  }
+                }
+
+                if (locationsData && locationsData.length > 0) {
+                  const locationsChanged = JSON.stringify(originalLocations) !== JSON.stringify(locationsData);
+                  if (locationsChanged) {
+                    doc.setIn(["http", "servers", 0, "location"], locationsData);
+                  }
+                } else if (locationsData.length === 0 && originalLocations.length > 0) {
+                  console.warn("No se encontraron locations activas, manteniendo las originales");
+                } else {
+                  doc.setIn(["http", "servers", 0, "location"], locationsData);
+                }
+                const jsonData = doc.getIn(["http", "servers", 0]);
+                const payload = wrapBackendStructure(jsonData as ServerConfig);
+
+
+                const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify(payload),
+                });
+                console.log("JSON enviado al back", JSON.stringify(payload, null, 2))
+
+                if (!response.ok)
+                  throw new Error(`Error HTTP: ${response.status}`);
+                if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+                setShowSuccessAlert(true);
+
+                if (response.ok) {
+                  setShowSuccessAlert(true);
+                  setIsSaving(true);
+                  setTimeout(() => {
+                    setShowSuccessAlert(false);
+                    setIsSaving(false);
+                  }, 4000);
+                }
+                //alert(`Configuración del servidor "${selectedServerLabel}" actualizada correctamente`);
+                await refreshDataAfterSave(serverName);
+                const updatedServers = await getAvailableServers(serverOptions);
+                setServerOptions(updatedServers);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : "Error al guardar la configuración del servidor.";
+                alert(errorMessage);
               }
-            }
-          
-            if (prevVal !== nextVal) {
-              doc.setIn(["http", "servers", 0, key], nextVal);
-            }
-          }          
-          
-          if (locationsData && locationsData.length > 0) {
-            const locationsChanged = JSON.stringify(originalLocations) !== JSON.stringify(locationsData);
-            if (locationsChanged) {
-              doc.setIn(["http", "servers", 0, "location"], locationsData);
-            }
-          } else if (locationsData.length === 0 && originalLocations.length > 0) {
-            console.warn("No se encontraron locations activas, manteniendo las originales");
-          } else {
-            doc.setIn(["http", "servers", 0, "location"], locationsData);
-          }
-          const jsonData = doc.getIn(["http", "servers", 0]);
-          const payload = wrapBackendStructure(jsonData as ServerConfig);
-          
+            }}
+            variant="ghost"
+            gradientColors="from-blue-500 via-blue-600 to-blue-700"
+          >
+            Guardar cambios
+          </Button>
+          {showSuccessAlert && (
+            <div
+              className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
+              role="alert"
+            >
+              <span><CircleCheck size={20} /> </span>
+              <p className="text-xl font-italic dark:text-white">
+                Configuración del servidor{" "}
+                <span className="font-semibold">{selectedServerLabel}</span>{" "}
+                actualizada correctamente
+              </p>
+            </div>
+          )}
 
-          const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          });
-          console.log("JSON enviado al back", JSON.stringify(payload, null, 2))
+          {showCreatedServer && (
+            <div
+              className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
+              role="alert"
+            >
+              <span><CircleCheck size={20} /> </span>
+              <p className="text-xl font-italic dark:text-white">
+                Servidor{" "}
+                <span className="font-semibold">{createdServerName}</span>{" "}
+                creado y configurado correctamente
+              </p>
+            </div>
+          )}
+        </div>
+      </Card>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-3">
+          <Dropdown
+            options={serverOptions}
+            value={selectedServer}
+            onChange={(val) => handleServerChange(val)}
+          />
 
-          if (!response.ok)
-            throw new Error(`Error HTTP: ${response.status}`);
-          if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-          setShowSuccessAlert(true);
-      
-          if (response.ok) {
-            setShowSuccessAlert(true);  
-            setIsSaving(true);  
-            setTimeout(() => {
-            setShowSuccessAlert(false);
-            setIsSaving(false);
-            }, 4000);
-          }          
-          //alert(`Configuración del servidor "${selectedServerLabel}" actualizada correctamente`);
-          await refreshDataAfterSave(serverName);
-          const updatedServers = await getAvailableServers(serverOptions);
-          setServerOptions(updatedServers);
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : "Error al guardar la configuración del servidor.";
-          alert(errorMessage);
-        }
-      }}
-      variant="ghost"
-      gradientColors="from-blue-500 via-blue-600 to-blue-700"
-    >
-      Guardar cambios
-    </Button>
-    {showSuccessAlert && (
-      <div
-        className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
-        role="alert"
-      >
-        <span><CircleCheck size={20}/> </span>
-        <p className="text-xl font-italic dark:text-white">
-          Configuración del servidor{" "}
-          <span className="font-semibold">{selectedServerLabel}</span>{" "}
-          actualizada correctamente
-        </p>
-      </div>
-    )}
-
-    {showCreatedServer && (
-      <div
-        className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
-        role="alert"
-      >
-        <span><CircleCheck size={20}/> </span>
-        <p className="text-xl font-italic dark:text-white">
-          Servidor{" "}
-          <span className="font-semibold">{createdServerName}</span>{" "}
-          creado y configurado correctamente
-        </p>
-      </div>
-    )}
-    </div> 
-    </Card>
-    <div className="flex justify-between items-center mb-4">
-      <div className="flex items-center gap-3">
-      <Dropdown 
-        options={serverOptions}
-        value={selectedServer}
-        onChange={(val) => handleServerChange(val)}
-      />
-
-        <Button
-        onClick={() => setShowDropdown(prev => !prev)}
-        variant="ghost"
-        >
-          <Menu />
-        </Button>
-        {showDropdown && (
-          <li className="accordion-item flex" id="menu-app-2">
-          <div id="menu-app-collapse-2" 
-          className={`accordion-content w-full space-y-0.5 overflow-hidden transition-[height] duration-300 ${
-            showDropdown ? "block" : "hidden"
-          }`}
-          aria-labelledby="menu-app-2" role="region" >
-            <ul className="accordion flex gap-4">
-              <li>
-              <Button
-                onClick={() => setShowAddServerModal(true)}
-                variant="ghost"
-                gradientColors="from-green-500 via-green-600 to-green-700"
-                className="flex items-center gap-2"
-              >
-                <Plus size={18} />
-                Agregar servidor
-              </Button>
-              </li>
-              <li>
-              <Button
-                onClick={() => {setShowDeleteModal(true)}}
-                variant="ghost"
-                gradientColors="from-red-500 via-red-600 to-red-700"
-                className="flex items-center gap-2"
-              >
-                <Trash size={18} />
-                Eliminar este servidor
-              </Button>
-              {showDeleteModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
-                <h3 className="text-2xl text-gray-900 dark:text-white mb-4 text-center">
-                  ¿Estás seguro de que quieres eliminar
-                  <br />
-                  <span className="font-semibold text-red-500">
-                    {selectedServerLabel}
-                  </span>
-                  ?
-                </h3>
-                <div className="flex gap-3 justify-center">
+          <Button
+            onClick={() => setShowDropdown(prev => !prev)}
+            variant="ghost"
+          >
+            <Menu />
+          </Button>
+          {showDropdown && (
+            <li className="accordion-item flex" id="menu-app-2">
+              <div id="menu-app-collapse-2"
+                className={`accordion-content w-full space-y-0.5 overflow-hidden transition-[height] duration-300 ${showDropdown ? "block" : "hidden"
+                  }`}
+                aria-labelledby="menu-app-2" role="region" >
+                <ul className="accordion flex gap-4">
+                  <li>
                     <Button
                       onClick={() => {
-                        setShowDeleteModal(false);
+                        setNewEditedServerName(selectedServerLabel);
+                        setShowEditServerModal(true);
                       }}
                       variant="ghost"
-                      gradientColors="from-gray-400 via-gray-500 to-gray-600"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={handleDeleteServer}
-                      variant="ghost"
                       gradientColors="from-blue-500 via-blue-600 to-blue-700"
+                      className="flex items-center gap-2"
                     >
-                      Sí, eliminar
+                      <Pencil size={18} />
+                      Editar nombre del servidor
                     </Button>
-                  </div>
-                </div>
-              </div>
-            )}        
-                  {showDeleteAlert && (
-                    <div
-                      className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
-                      role="alert"
+                  </li>
+                  <li>
+                    <Button
+                      onClick={() => setShowAddServerModal(true)}
+                      variant="ghost"
+                      gradientColors="from-green-500 via-green-600 to-green-700"
+                      className="flex items-center gap-2"
                     >
-                      <span><CircleCheck size={20}/> </span>
-                      <p className="text-xl font-italic dark:text-white">
-                        Configuración del servidor{" "}
-                        <span className="font-semibold">{deletedServerName}</span>{" "}
-                        eliminada correctamente
-                      </p>
-                    </div>
-                  )}
-              </li>
-            </ul>
-          </div>
-        </li>
-        )
-        }
-      </div>
+                      <Plus size={18} />
+                      Agregar servidor
+                    </Button>
+                  </li>
+                  <li>
+                    <Button
+                      onClick={() => { setShowDeleteModal(true) }}
+                      variant="ghost"
+                      gradientColors="from-red-500 via-red-600 to-red-700"
+                      className="flex items-center gap-2"
+                    >
+                      <Trash size={18} />
+                      Eliminar este servidor
+                    </Button>
+                    {showDeleteModal && (
+                      <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+                          <h3 className="text-2xl text-gray-900 dark:text-white mb-4 text-center">
+                            ¿Estás seguro de que quieres eliminar
+                            <br />
+                            <span className="font-semibold text-red-500">
+                              {selectedServerLabel}
+                            </span>
+                            ?
+                          </h3>
+                          <div className="flex gap-3 justify-center">
+                            <Button
+                              onClick={() => {
+                                setShowDeleteModal(false);
+                              }}
+                              variant="ghost"
+                              gradientColors="from-gray-400 via-gray-500 to-gray-600"
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              onClick={handleDeleteServer}
+                              variant="ghost"
+                              gradientColors="from-blue-500 via-blue-600 to-blue-700"
+                            >
+                              Sí, eliminar
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {showDeleteAlert && (
+                      <div
+                        className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
+                        role="alert"
+                      >
+                        <span><CircleCheck size={20} /> </span>
+                        <p className="text-xl font-italic dark:text-white">
+                          Configuración del servidor{" "}
+                          <span className="font-semibold">{deletedServerName}</span>{" "}
+                          eliminada correctamente
+                        </p>
+                      </div>
+                    )}
+                  </li>
+                </ul>
+              </div>
+            </li>
+          )
+          }
+        </div>
 
-    </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Name</label>
-          <input type="text" value={serverConfig.name} onChange={(e) => handleServerConfigChange('name', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
+          <input type="text" value={serverConfig.name} onChange={(e) => handleServerConfigChange('name', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600" />
         </div>
-          <div>
+        <div>
           <label className="text-sm font-bold text-gray-600 dark:text-gray-300">
             Listen
           </label>
@@ -643,34 +697,34 @@ const getActiveLocations = () => {
             }}
             className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
           />
-      </div>
-
-          
-          <div>
-            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Version</label>
-            <input 
-              type="text" 
-              value={serverConfig.version} 
-              onChange={(e) => {
-                handleServerConfigChange('version', e.target.value); 
-              }}
-              onBlur={(e) => {
-                if (e.target.value.trim() === '') {
-                  handleServerConfigChange('version', defaultServerConfig.version);
-                }
-              }}
-              className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
-            />
-          </div>  
-          <div className="md:col-span-2">
-            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Logger Path</label>
-            <input type="text" value={serverConfig.logger_path} onChange={(e) => handleServerConfigChange('logger_path', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
-          </div>
-          <div>
-            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Logger</label>
-            <input type="text" value={serverConfig.logger} onChange={(e) => handleServerConfigChange('logger', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"/>
-          </div>
         </div>
+
+
+        <div>
+          <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Version</label>
+          <input
+            type="text"
+            value={serverConfig.version}
+            onChange={(e) => {
+              handleServerConfigChange('version', e.target.value);
+            }}
+            onBlur={(e) => {
+              if (e.target.value.trim() === '') {
+                handleServerConfigChange('version', defaultServerConfig.version);
+              }
+            }}
+            className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Logger Path</label>
+          <input type="text" value={serverConfig.logger_path} onChange={(e) => handleServerConfigChange('logger_path', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600" />
+        </div>
+        <div>
+          <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Logger</label>
+          <input type="text" value={serverConfig.logger} onChange={(e) => handleServerConfigChange('logger', e.target.value)} className="w-full mt-1 bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600" />
+        </div>
+      </div>
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -680,35 +734,34 @@ const getActiveLocations = () => {
 
       {reseteando && (
         <div className="flex justify-center items-center py-8 animate-fadeInSimple">
-        <div className="flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div> 
-          <span className="ml-3 text-gray-600 font-medium">Aplicando ajustes...</span>
-        </div>
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            <span className="ml-3 text-gray-600 font-medium">Aplicando ajustes...</span>
+          </div>
         </div>
       )}
-      
+
       {!reseteando && escenarios.map((escenario, index) => (
         <div
           key={escenario.id}
-          className={`panel-container relative border border-gray-300 dark:border-gray-700 rounded-2xl p-6 bg-gray-50 dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 ${
-            eliminando === escenario.id 
-              ? 'animate-slideOut' 
-              : 'animate-slideIn'
-          }`}
-          style={{ 
+          className={`panel-container relative border border-gray-300 dark:border-gray-700 rounded-2xl p-6 bg-gray-50 dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 ${eliminando === escenario.id
+            ? 'animate-slideOut'
+            : 'animate-slideIn'
+            }`}
+          style={{
             animationDelay: eliminando === escenario.id ? '0ms' : `${index * 150}ms`,
             overflow: eliminando === escenario.id ? 'hidden' : 'visible'
           }}
         >
 
-      <Button
-        onClick={() => eliminarEscenario(escenario.id)}
-        variant={"ghost"}
-        className="eliminate-btn absolute top-3 right-3 w-10 h-10 flex items-center justify-center font-bold text-lg rounded-full hover:bg-red-50 transition-all duration-200"
-        title="Eliminar endpoint"
-      >
-        <CircleX style={{ color: '#B91C1C' }} /> 
-      </Button>
+          <Button
+            onClick={() => eliminarEscenario(escenario.id)}
+            variant={"ghost"}
+            className="eliminate-btn absolute top-3 right-3 w-10 h-10 flex items-center justify-center font-bold text-lg rounded-full hover:bg-red-50 transition-all duration-200"
+            title="Eliminar endpoint"
+          >
+            <CircleX style={{ color: '#B91C1C' }} />
+          </Button>
 
           <PanelAjustesIndv
             ref={(ref) => {
@@ -716,7 +769,7 @@ const getActiveLocations = () => {
             }}
             initialData={escenario.data}
             selectedServer={selectedServer}
-            />
+          />
         </div>
       ))}
 
@@ -736,7 +789,7 @@ const getActiveLocations = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Agregar Nuevo Servidor
             </h2>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">
                 Nombre del Servidor
@@ -777,6 +830,59 @@ const getActiveLocations = () => {
                 gradientColors="from-green-500 via-green-600 to-green-700"
               >
                 Crear Servidor
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditServerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Editar nombre del servidor
+            </h2>
+
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">
+                Nuevo nombre
+              </label>
+              <input
+                type="text"
+                value={newEditedServerName}
+                onChange={(e) => setNewEditedServerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleRenameServer();
+                  }
+                  if (e.key === 'Escape') {
+                    setShowEditServerModal(false);
+                    setNewEditedServerName('');
+                  }
+                }}
+                placeholder="Ingrese el nuevo nombre"
+                className="w-full bg-gray-200/60 dark:bg-gray-700/60 p-2 rounded-lg text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={() => {
+                  setShowEditServerModal(false);
+                  setNewEditedServerName('');
+                }}
+                variant="ghost"
+                gradientColors="from-gray-400 via-gray-500 to-gray-600"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleRenameServer}
+                variant="ghost"
+                gradientColors="from-blue-500 via-blue-600 to-blue-700"
+              >
+                Guardar cambios
               </Button>
             </div>
           </div>
