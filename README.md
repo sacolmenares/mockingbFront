@@ -1,4 +1,4 @@
-# mockingbFront
+# Fronted Mockingbird
 
 Frontend del sistema **Mockingbird**, orientado a la visualización e interacción con endpoints HTTP simulados definidos por configuración. Este proyecto proporciona la interfaz de usuario para la gestión y consumo de servicios mockeados, y está diseñado para integrarse directamente con el backend de Mockingbird.
 
