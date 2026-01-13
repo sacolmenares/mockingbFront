@@ -1,76 +1,27 @@
-# React + TypeScript + Vite
+# mockingbFront
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend del sistema **Mockingbird**, orientado a la visualización e interacción con endpoints HTTP simulados definidos por configuración. Este proyecto proporciona la interfaz de usuario para la gestión y consumo de servicios mockeados, y está diseñado para integrarse directamente con el backend de Mockingbird.
 
-Currently, two official plugins are available:
+## Descripción general
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+El frontend permite trabajar con endpoints dinámicos configurados desde el backend, facilitando tareas de desarrollo, pruebas e integración sin depender de servicios reales.  
+La aplicación se implementa como una **Single Page Application (SPA)** y utiliza un stack moderno basado en React y Vite.
 
-## React Compiler
+## Requisitos del sistema
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Para ejecutar el proyecto es necesario contar con:
 
-## Expanding the ESLint configuration
+- **Node.js** (versión 18 o superior)
+- **npm**
+- **Go** (requerido para el instalador de dependencias)
+- Sistema operativo **Windows** (el instalador genera un archivo `.exe`)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Instalación de dependencias
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+El proyecto incluye un script en Go que automatiza la preparación del entorno.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Desde la raíz del repositorio, ejecutar los siguientes comandos en orden:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-"# mockingbirdFront" 
-"# mockingbFront" 
-"# mockingbFront" 
+```bash
+go build -o install_deps.exe install_dependencies.go
+.\install_deps.exe
