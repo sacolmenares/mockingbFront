@@ -218,6 +218,7 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       let initialServer = serverFromQuery || (servers[0] ? servers[0].label : "Mockingbird");
       setSelectedServer(initialServer.toLowerCase());
       await fetchServerData(initialServer);
+      setShowDropdown(false);
     };
     loadServers();
   }, [location.search]);
@@ -347,6 +348,7 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
     try {
       setIsSaving(true);
+      setShowDropdown(false); // Cerramos el menú
       setShowEditServerModal(false); // Cerramos el modal inmediatamente
       const response = await fetch(`/api/mock/config/rename?old_name=${encodeURIComponent(selectedServerLabel)}&new_name=${encodeURIComponent(validName)}`, {
         method: 'POST',
@@ -359,9 +361,6 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       setNewEditedServerName('');
       setShowSuccessAlert(true);
 
-      // --- ACTUALIZACIÓN ATÓMICA ---
-      // Cambiamos el contexto inmediatamente para que el frontend 
-      // deje de referenciar al nombre antiguo.
       const updatedServers = await getAvailableServers(serverOptions);
       setServerOptions(updatedServers);
 
@@ -514,7 +513,6 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
                 }
                 const jsonData = doc.getIn(["http", "servers", 0]);
                 const payload = wrapBackendStructure(jsonData as ServerConfig);
-
 
                 const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
                   method: "PUT",
@@ -776,10 +774,10 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
           <Button
             onClick={() => eliminarEscenario(escenario.id)}
             variant={"ghost"}
-            className="eliminate-btn absolute top-3 right-3 w-10 h-10 flex items-center justify-center font-bold text-lg rounded-full hover:bg-red-50 transition-all duration-200"
+            className="eliminate-btn absolute top-3 right-3 w-10 h-10 p-0 flex items-center justify-center font-bold text-lg rounded-full bg-white/80 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 z-10 shadow-sm"
             title="Eliminar endpoint"
           >
-            <CircleX style={{ color: '#B91C1C' }} />
+            <CircleX size={20} style={{ color: '#B91C1C' }} />
           </Button>
 
           <PanelAjustesIndv

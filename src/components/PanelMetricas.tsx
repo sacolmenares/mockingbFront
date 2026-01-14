@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "./Button";
-import { Info, CircleX } from 'lucide-react';
+import { Info, CircleX, CircleCheck } from 'lucide-react';
+import { animationLoadingLogo as AnimationLoadingLogo } from "./animationLogo";
 
 
 let isStyleInjected = false;
@@ -32,46 +33,108 @@ const timeRangeOptions = [
 ];
 
 export function PanelMetricas() {
-  const [baseUrl, setBaseUrl] = useState("http://localhost:3000");
-  const [dashboardId, setDashboardId] = useState("addn4pp");
+  const [baseUrl, setBaseUrl] = useState(() => {
+    try {
+      return localStorage.getItem("metrics_base_url") || "http://localhost:3000";
+    } catch { return "http://localhost:3000"; }
+  });
+  const [dashboardId, setDashboardId] = useState(() => {
+    try {
+      return localStorage.getItem("metrics_dashboard_id") || "id dashboard";
+    } catch { return "id dashboard"; }
+  });
   const [tempBaseUrl, setTempBaseUrl] = useState(baseUrl);
   const [tempDashboardId, setTempDashboardId] = useState(dashboardId);
-  const [panels, setPanels] = useState(defaultPanels);
+  const [panels, setPanels] = useState(() => {
+    try {
+      const saved = localStorage.getItem("metrics_panels");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed : defaultPanels;
+      }
+    } catch (e) {
+      console.error("Error cargando paneles desde localStorage", e);
+    }
+    return defaultPanels;
+  });
   const [filter] = useState("");
-  const [timeRange, setTimeRange] = useState(timeRangeOptions[1].value);
+  const [timeRange, setTimeRange] = useState(() => {
+    try {
+      return localStorage.getItem("metrics_time_range") || timeRangeOptions[1].value;
+    } catch { return timeRangeOptions[1].value; }
+  });
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
 
   //Cargar datos desde la bd
   const fetchMetricsConfig = async () => {
     try {
       const res = await fetch("/api/mock/config/metrics");
       if (!res.ok) return;
-  
+
       const data = await res.json();
       if (!data || Object.keys(data).length === 0) return;
-  
-      setBaseUrl(data.base_url);
-      setDashboardId(data.dashboard_id);
-      setTempBaseUrl(data.base_url);
-      setTempDashboardId(data.dashboard_id);
-      setTimeRange(data.time_range);
-      setPanels(data.panels);
+
+      // Solo actualizamos si el backend tiene datos reales
+      if (data.base_url) {
+        setBaseUrl(data.base_url);
+        setTempBaseUrl(data.base_url);
+        localStorage.setItem("metrics_base_url", data.base_url);
+      }
+      if (data.dashboard_id) {
+        setDashboardId(data.dashboard_id);
+        setTempDashboardId(data.dashboard_id);
+        localStorage.setItem("metrics_dashboard_id", data.dashboard_id);
+      }
+      if (data.time_range) {
+        setTimeRange(data.time_range);
+        localStorage.setItem("metrics_time_range", data.time_range);
+      }
+
+      if (data.panels && Array.isArray(data.panels) && data.panels.length > 0) {
+        // Aseguramos que cada panel tenga un uid único para el frontend
+        const panelsWithUids = data.panels.map((p: any, i: number) => ({
+          ...p,
+          uid: p.uid || `p-${i}-${Date.now()}`
+        }));
+        setPanels(panelsWithUids);
+        localStorage.setItem("metrics_panels", JSON.stringify(panelsWithUids));
+      }
     } catch (err) {
-      console.error("Error cargando configuración de métricas", err);
+      console.error("Error cargando configuración de métricas desde el servidor", err);
     }
   };
-  
+
 
   useEffect(() => {
     injectAnimationStyles();
     fetchMetricsConfig();
   }, []);
-  
+
 
   const aplicarCambios = async () => {
+    setIsSaving(true);
+
+    // Sincronizar UI local inmediatamente para máxima fluidez
     setBaseUrl(tempBaseUrl);
     setDashboardId(tempDashboardId);
-  
+
+    // Persistencia local inmediata
+    localStorage.setItem("metrics_base_url", tempBaseUrl);
+    localStorage.setItem("metrics_dashboard_id", tempDashboardId);
+    localStorage.setItem("metrics_time_range", timeRange);
+
+    // Solo guardamos paneles si es un array válido
+    if (Array.isArray(panels)) {
+      localStorage.setItem("metrics_panels", JSON.stringify(panels));
+    }
+
+    // Limpiamos los paneles para no enviar el 'uid' al backend (que es solo para el front)
+    const cleanedPanels = Array.isArray(panels)
+      ? panels.map(({ uid, ...rest }) => rest)
+      : [];
+
     try {
       await fetch("/api/mock/config/metrics", {
         method: "POST",
@@ -80,18 +143,33 @@ export function PanelMetricas() {
           base_url: tempBaseUrl,
           dashboard_id: tempDashboardId,
           time_range: timeRange,
-          panels: panels,
+          panels: cleanedPanels,
         }),
       });
+
+      // El éxito visual es casi inmediato gracias a la persistencia local
+      setShowSuccessAlert(true);
+
+      // Siempre cerramos la carga después de 4s para mantener el UX premium
+      setTimeout(() => {
+        setShowSuccessAlert(false);
+        setIsSaving(false);
+      }, 4000);
+
     } catch (err) {
-      console.error("Error guardando métricas", err);
+      console.error("Error síncronizando con el servidor", err);
+      // Fallback de seguridad: la UI ya tiene los datos locales, solo liberamos el bloqueo
+      setTimeout(() => {
+        setIsSaving(false);
+        setShowSuccessAlert(false);
+      }, 1000);
     }
   };
-  
+
 
   const handlePanelIdChange = (uid: string, inputValue: string) => {
     if (inputValue === "") {
-      const updatedPanels = panels.map((panel) => 
+      const updatedPanels = panels.map((panel) =>
         panel.uid === uid ? { ...panel, id: 0 } : panel
       );
       setPanels(updatedPanels);
@@ -132,19 +210,19 @@ export function PanelMetricas() {
   const addPanel = () => {
     const newPanel = {
       uid: `new-${Date.now()}`,
-      id: 0, 
+      id: 0,
       title: "",
-      type: "request", 
+      type: "request",
     };
     setPanels([...panels, newPanel]);
   };
 
 
   const filteredPanels = panels.filter((p) => {
-    if (!filter) return true; 
+    if (!filter) return true;
     const searchText = filter.toLowerCase();
     return p.title.toLowerCase().includes(searchText) ||
-          p.type.toLowerCase().includes(searchText);
+      p.type.toLowerCase().includes(searchText);
   });
 
   const panelBgClass = (type: string | undefined) => {
@@ -159,72 +237,91 @@ export function PanelMetricas() {
 
   return (
     <div className="bg-gray-100 dark:bg-gray-900 p-8 rounded-3xl shadow-xl max-w-7xl mx-auto relative">
-      <Button  onClick={() => {setShowInfoModal(true)}}
-      variant="ghost"
-      className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 
+      {isSaving && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100]">
+          <div className="flex flex-col items-center gap-2 w-48 h-48">
+            <AnimationLoadingLogo />
+          </div>
+        </div>
+      )}
+
+      {showSuccessAlert && (
+        <div
+          className="fixed top-8 left-1/2 transform -translate-x-1/2 z-[110] alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
+          role="alert"
+        >
+          <span><CircleCheck size={20} /> </span>
+          <p className="text-xl font-italic dark:text-white">
+            Cambios aplicados correctamente
+          </p>
+        </div>
+      )}
+      <Button onClick={() => { setShowInfoModal(true) }}
+        variant="ghost"
+        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 
       dark:text-gray-300 absolute top-4 right-4"
       >
         <Info size={24} />
       </Button>
       {showInfoModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 fade-in fade-out">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-xl mx-4 relative max-h-[80vh] overflow-y-auto">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">
-            Cómo visualizar las métricas
-          </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 fade-in fade-out">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-xl mx-4 relative max-h-[80vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+              Cómo visualizar las métricas
+            </h2>
 
-          <p className="mb-3 text-gray-700 dark:text-gray-300">
-            Esta sección te permite visualizar métricas de tus dashboards de Grafana de manera rápida y organizada.
-          </p>
+            <p className="mb-3 text-gray-700 dark:text-gray-300">
+              Esta sección te permite visualizar métricas de tus dashboards de Grafana de manera rápida y organizada.
+            </p>
 
-          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">1. URL Base</h3>
-          <p className="mb-3 text-gray-700 dark:text-gray-300">
-            Por defecto es <code>http://localhost:3000</code>, ya que normalmente Grafana se ejecuta en tu computadora. <br />
-            Si tu servidor Grafana está en otra dirección, cámbiala aquí.
-          </p>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">1. URL Base</h3>
+            <p className="mb-3 text-gray-700 dark:text-gray-300">
+              Por defecto es <code>http://localhost:3000</code>, ya que normalmente Grafana se ejecuta en tu computadora. <br />
+              Si tu servidor Grafana está en otra dirección, cámbiala aquí.
+            </p>
 
-          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">2. Dashboard ID</h3>
-          <p className="mb-3 text-gray-700 dark:text-gray-300">
-            Cada dashboard de Grafana tiene un ID único (por ejemplo: <code>addn4pp</code>). 
-            <br/>Coloca aquí el ID del dashboard que quieres monitorear.
-          </p>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">2. Dashboard ID</h3>
+            <p className="mb-3 text-gray-700 dark:text-gray-300">
+              Cada dashboard de Grafana tiene un ID único (por ejemplo: <code>addn4pp</code>).
+              <br />Coloca aquí el ID del dashboard que quieres monitorear.
+            </p>
 
-          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">3. Frecuencia de actualización</h3>
-          <p className="mb-3 text-gray-700 dark:text-gray-300">
-            Selecciona cada cuánto tiempo deseas actualizar los datos del panel: último minuto, última hora, últimas 24 horas, etc...
-          </p>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">3. Frecuencia de actualización</h3>
+            <p className="mb-3 text-gray-700 dark:text-gray-300">
+              Selecciona cada cuánto tiempo deseas actualizar los datos del panel: último minuto, última hora, últimas 24 horas, etc...
+            </p>
 
-          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">4. Paneles individuales</h3>
-          <p className="mb-3 text-gray-700 dark:text-gray-300">
-            Cada cuadro representa un panel de métricas específico (requests, latencia, errores, recursos).  <br />
-            - Ingresa el <strong>ID del panel</strong> correspondiente de Grafana.  <br />
-            - Puedes agregar nuevos paneles con<span className="font-bold text-green-600 dark:text-green-400"><strong>" + Agregar Panel "</strong></span>. <br />
-            - Para eliminar un panel, haz clic en ✕ (mínimo 3 paneles activos).
-          </p>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">4. Paneles individuales</h3>
+            <p className="mb-3 text-gray-700 dark:text-gray-300">
+              Cada cuadro representa un panel de métricas específico (requests, latencia, errores, recursos).  <br />
+              - Ingresa el <strong>ID del panel</strong> correspondiente de Grafana.  <br />
+              - Puedes agregar nuevos paneles con<span className="font-bold text-green-600 dark:text-green-400"><strong>" + Agregar Panel "</strong></span>. <br />
+              - Para eliminar un panel, haz clic en ✕ (mínimo 3 paneles activos).
+            </p>
 
-          <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">5. Visualización</h3>
-          <p className="mb-3 text-gray-700 dark:text-gray-300">
-            Cada panel se muestra como un <em>iframe</em> que carga el gráfico correspondiente desde Grafana. <br /> 
-            Puedes ver las métricas en tiempo real según el rango de tiempo seleccionado.
-          </p>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">5. Visualización</h3>
+            <p className="mb-3 text-gray-700 dark:text-gray-300">
+              Cada panel se muestra como un <em>iframe</em> que carga el gráfico correspondiente desde Grafana. <br />
+              Puedes ver las métricas en tiempo real según el rango de tiempo seleccionado.
+            </p>
 
-          <p className="mb-3 text-gray-700 dark:text-gray-300">
-            Una vez realizados los cambios, haz clic en <span className="font-bold text-blue-600 dark:text-blue-400"><strong>" ✓ Aplicar Cambios "</strong></span> para actualizar el panel.
-          </p>
+            <p className="mb-3 text-gray-700 dark:text-gray-300">
+              Una vez realizados los cambios, haz clic en <span className="font-bold text-blue-600 dark:text-blue-400"><strong>" ✓ Aplicar Cambios "</strong></span> para actualizar el panel.
+            </p>
 
-      <div className="flex justify-end mt-6">
-        <Button
-          onClick={() => setShowInfoModal(false)}
-          variant="ghost"
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 
+            <div className="flex justify-end mt-6">
+              <Button
+                onClick={() => setShowInfoModal(false)}
+                variant="ghost"
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 
           dark:text-gray-300 absolute top-4 right-4"
-        >
-          <CircleX size={20} />
-        </Button>
-      </div>
-    </div>
-  </div>
-)}
+              >
+                <CircleX size={20} />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-6 text-center">
         Métricas
@@ -233,8 +330,8 @@ export function PanelMetricas() {
 
 
       <div className="flex flex-col md:flex-row gap-4 mb-8 justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm">
-      <div className="flex gap-4 items-center flex-wrap">
-        <input
+        <div className="flex gap-4 items-center flex-wrap">
+          <input
             className="p-3 border border-gray-300 dark:border-gray-600 rounded-xl w-64 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 outline-none"
             placeholder="URL Base"
             value={tempBaseUrl}
@@ -260,13 +357,13 @@ export function PanelMetricas() {
         </div>
 
         <div className="flex items-center">
-        <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             gradientColors="from-blue-500 via-blue-600 to-blue-700"
             onClick={aplicarCambios}
             className=""
           >
-          ✓ Aplicar Cambios
+            ✓ Aplicar Cambios
           </Button>
         </div>
       </div>
@@ -281,10 +378,10 @@ export function PanelMetricas() {
               <h2 className="text-lg font-bold flex items-center gap-2 truncate">
                 {p.title}
               </h2>
-              
-            {/* Minimo 3 paneles por defecto */}
+
+              {/* Minimo 3 paneles por defecto */}
               {panels.length > 3 && (
-                <button 
+                <button
                   onClick={() => removePanel(p.uid)}
                   className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 font-bold p-1 rounded transition-colors"
                   title="Eliminar este panel"
@@ -303,32 +400,32 @@ export function PanelMetricas() {
                 className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg w-20 text-sm text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600 outline-none bg-white/80 dark:bg-gray-800/80"
                 placeholder="Ingresa ID"
                 type="number"
-                min="1" 
-                value={p.id === 0 ? "" : p.id} 
-                onChange={(e) => handlePanelIdChange(p.uid, e.target.value)} 
+                min="1"
+                value={p.id === 0 ? "" : p.id}
+                onChange={(e) => handlePanelIdChange(p.uid, e.target.value)}
               />
             </div>
 
             {/* Iframe dinámico */}
             <div className="rounded-xl overflow-hidden bg-white dark:bg-gray-900 shadow-inner border border-gray-100 dark:border-gray-700">
               <iframe
-                src={`${baseUrl}/d-solo/${dashboardId}/mockingbird-metrics?orgId=1&panelId=${p.id}&from=${timeRange.split('&')[0]}&to=${timeRange.split('&')[1].replace('to=', '')}`}                width="100%"
+                src={`${baseUrl}/d-solo/${dashboardId}/mockingbird-metrics?orgId=1&panelId=${p.id}&from=${timeRange.split('&')[0]}&to=${timeRange.split('&')[1].replace('to=', '')}`} width="100%"
                 height="200"
                 frameBorder="0"
-                className="pointer-events-none" 
+                className="pointer-events-none"
               ></iframe>
             </div>
           </div>
         ))}
-      <div className="pt-6 flex justify-start">
-      <Button 
-        variant="ghost" 
-        gradientColors="from-green-500 via-green-600 to-green-700"
-        onClick={addPanel}
-      >
-      + Agregar Panel
-      </Button>
-      </div>
+        <div className="pt-6 flex justify-start">
+          <Button
+            variant="ghost"
+            gradientColors="from-green-500 via-green-600 to-green-700"
+            onClick={addPanel}
+          >
+            + Agregar Panel
+          </Button>
+        </div>
       </div>
     </div>
   );
