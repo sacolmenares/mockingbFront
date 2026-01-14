@@ -32,6 +32,7 @@ export interface Headers {
     timeout?: number;
     retries?: number;
     retryDelay?: number;
+    async?: AsyncConfig[];
   }
   
   export interface Location {
@@ -42,7 +43,7 @@ export interface Headers {
     response: string;
     headers?: Headers;
     status_code: number;
-    async?: AsyncConfig;
+    async?: AsyncConfig[];
     chaos_injection?: ChaosInjection;
   }
   

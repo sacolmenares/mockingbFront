@@ -1,5 +1,13 @@
 import type { Headers } from "../models/backendModels";
 
+export interface AsyncItemUI {
+  url?: string;
+  body?: string;
+  method?: string;
+  headers?: Headers;
+  async?: AsyncItemUI[];
+}
+
 export interface EscenarioUI {
   path: string;
   method: string;
@@ -8,16 +16,7 @@ export interface EscenarioUI {
   status_code: number;
   headers: Headers;
 
-  async?: {
-    enabled: boolean;
-    url?: string;
-    body?: string;
-    method?: string;
-    headers?: Headers;
-    timeout?: number;
-    retries?: number;
-    retryDelay?: number;
-  };
+  async?: AsyncItemUI[];
 
   chaosInjection?: {
     enabled: boolean;

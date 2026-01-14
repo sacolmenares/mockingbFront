@@ -230,7 +230,6 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       const validName = newServerName.trim();
       if (!validName) throw new Error("Debes ingresar un nombre de servidor");
 
-      // Generar un puerto único aleatorio
       const uniqueListen = await generateUniqueListen();
 
       const payloadPost = {
@@ -292,7 +291,7 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
     try {
       setIsSaving(true);
-      setShowAddServerModal(false); // Cerramos el modal inmediatamente
+      setShowAddServerModal(false); 
       await handleCreateServer();
       setNewServerName('');
 
@@ -348,8 +347,8 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
     try {
       setIsSaving(true);
-      setShowDropdown(false); // Cerramos el menú
-      setShowEditServerModal(false); // Cerramos el modal inmediatamente
+      setShowDropdown(false); 
+      setShowEditServerModal(false); 
       const response = await fetch(`/api/mock/config/rename?old_name=${encodeURIComponent(selectedServerLabel)}&new_name=${encodeURIComponent(validName)}`, {
         method: 'POST',
       });
@@ -417,26 +416,22 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
         }
       }
 
-      if (escenario?.async) {
-        const { url, method } = escenario.async;
-
-        if (!url || !method) {
-          throw new Error(
-            `El escenario "${escenario.path || "(sin path)"}" tiene la opción asíncrona activa pero faltan URL o Method.`
-          );
-        }
+      if (escenario?.async && Array.isArray(escenario.async) && escenario.async.length > 0) {
+        escenario.async.forEach((asyncItem: any, index: number) => {
+          const hasUrl = asyncItem.url && typeof asyncItem.url === 'string' && asyncItem.url.trim() !== '';
+          const hasMethod = asyncItem.method && typeof asyncItem.method === 'string' && asyncItem.method.trim() !== '';
+          if (!hasUrl || !hasMethod) {
+            throw new Error(
+              `El escenario "${escenario.path || "(sin path)"}" tiene async[${index}] pero faltan URL o Method.`
+            );
+          }
+        });
       }
     });
 
     const escenariosOrdenados = escenariosActivos.map((esc: any) => {
       const escenarioCompleto: any = { ...esc };
 
-      if (escenarioCompleto.async) {
-        escenarioCompleto.async = {
-          ...escenarioCompleto.async,
-          body: escenarioCompleto.async.body ?? ""
-        };
-      }
 
       return escenarioCompleto;
     });

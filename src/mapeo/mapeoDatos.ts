@@ -1,8 +1,29 @@
-import type { Location } from "../models/backendModels";
-import type { EscenarioUI } from "../types/escenarioUI";
+import type { Location, AsyncConfig } from "../models/backendModels";
+import type { EscenarioUI, AsyncItemUI } from "../types/escenarioUI";
+
+function mapAsyncConfigToUI(asyncConfig: AsyncConfig | any): AsyncItemUI {
+  return {
+    url: asyncConfig.url,
+    method: asyncConfig.method,
+    body: asyncConfig.body ?? "",
+    headers: asyncConfig.headers ?? {},
+    async: asyncConfig.async ? asyncConfig.async.map((a: AsyncConfig) => mapAsyncConfigToUI(a)) : undefined,
+  };
+}
 
 export function mapBackendToUI(location: Location | any): EscenarioUI {
   const chaos = location.chaos_injection;
+
+  // Manejar async como array o como objeto único (para retrocompatibilidad)
+  let asyncArray: AsyncItemUI[] | undefined = undefined;
+  if (location.async) {
+    if (Array.isArray(location.async)) {
+      asyncArray = location.async.map((a: AsyncConfig) => mapAsyncConfigToUI(a));
+    } else {
+      // Retrocompatibilidad: si viene como objeto único, convertirlo a array
+      asyncArray = [mapAsyncConfigToUI(location.async)];
+    }
+  }
 
   return {
     path: location.path,
@@ -12,18 +33,7 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
     status_code: location.status_code,
     headers: location.headers ?? { "Content-Type": "application/json" },
 
-    async: location.async
-      ? {
-          enabled: true,
-          url: location.async.url,
-          method: location.async.method,
-          timeout: location.async.timeout ?? 5000,
-          retries: location.async.retries ?? 3,
-          retryDelay: location.async.retryDelay ?? 1000,
-          body: location.async.body ?? "",
-          headers: location.async.headers ?? {},
-        }
-      : undefined,
+    async: asyncArray,
 
     chaosInjection: chaos ?
        {
@@ -41,6 +51,16 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
 }
 
 
+function mapAsyncUIToBackend(asyncItem: AsyncItemUI): AsyncConfig {
+  return {
+    url: asyncItem.url,
+    method: asyncItem.method,
+    body: asyncItem.body ?? "",
+    headers: asyncItem.headers ?? {},
+    async: asyncItem.async ? asyncItem.async.map((a) => mapAsyncUIToBackend(a)) : undefined,
+  };
+}
+
 export function mapUIToBackend(escenario: EscenarioUI): Location {
   const toNumber = (value: unknown, fallback = 0): number => {
     const n = Number(value);
@@ -53,6 +73,12 @@ export function mapUIToBackend(escenario: EscenarioUI): Location {
     return false;
   };
 
+  // Convertir array de async a array de AsyncConfig
+  let asyncArray: AsyncConfig[] | undefined = undefined;
+  if (escenario.async && escenario.async.length > 0) {
+    asyncArray = escenario.async.map((a) => mapAsyncUIToBackend(a));
+  }
+
   return {
     path: escenario.path,
     method: escenario.method,
@@ -61,15 +87,7 @@ export function mapUIToBackend(escenario: EscenarioUI): Location {
     status_code: toNumber(escenario.status_code, 200),
     headers: escenario.headers,
 
-
-    async: escenario.async?.enabled
-    ? {
-        url: escenario.async.url ?? "",
-        method: escenario.async.method ?? "POST",
-        body: escenario.async.body ?? "",
-        headers: escenario.async.headers ?? {},
-      }
-    : undefined,
+    async: asyncArray,
   
     chaos_injection:
       escenario.chaosInjection?.enabled

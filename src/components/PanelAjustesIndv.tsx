@@ -2,10 +2,10 @@ import { useState, useImperativeHandle, forwardRef } from 'react';
 import { EndpointInput } from './Endpointinput.tsx';
 import { StatusCode } from './StatusCode.tsx';
 import Latency from './Latency.tsx';
-import { X } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { FieldWithError } from "./FieldWithError.tsx";
 import type { Location as LocationBackend } from "../models/backendModels";
-import type { EscenarioUI } from "../types/escenarioUI.ts";
+import type { EscenarioUI, AsyncItemUI } from "../types/escenarioUI.ts";
 import { mapUIToBackend } from "../mapeo/mapeoDatos";
 
 export interface PanelAjustesIndvRef {
@@ -25,13 +25,7 @@ export const PanelAjustesIndv = forwardRef<
         headers: initialData?.headers || { 'Content-Type': 'application/json' },
         response: initialData?.response || '{"message": "success"}',
         chaosInjection: (initialData as EscenarioUI)?.chaosInjection,
-        async: (initialData as EscenarioUI)?.async ?? {
-          enabled: false,
-          url: "",
-          method: "POST",
-          body: "",
-          headers: {},
-        },        
+        async: (initialData as EscenarioUI)?.async ?? undefined,        
       });
 
   const [validationErrors] = useState<Record<string, string>>({})
@@ -53,22 +47,11 @@ export const PanelAjustesIndv = forwardRef<
           errorResponse: null,
         };
       }
-      if (keys[0] === 'async' && !newState.async) {
-        newState.async = {
-          enabled: false,
-          url: '',
-          method: 'POST',
-          body: '',
-          headers: {},
-        };
-      }
       
       for (let i = 0; i < keys.length - 1; i++) {
         if (!current[keys[i]]) {
           if (keys[i] === 'chaosInjection') {
             current[keys[i]] = { enabled: false, latency: null, abort: null, error: null, errorResponse: null };
-          } else if (keys[i] === 'async') {
-            current[keys[i]] = { enabled: false, url: '', method: 'POST', body: '', headers: {} };
           } else {
             current[keys[i]] = {};
           }
@@ -115,6 +98,35 @@ export const PanelAjustesIndv = forwardRef<
     }
   }));
   
+  const updateAsyncArray = (newAsyncArray: AsyncItemUI[]) => {
+    setEscenario(prev => ({
+      ...prev,
+      async: newAsyncArray.length > 0 ? newAsyncArray : undefined
+    }));
+  };
+
+  const addAsyncItem = () => {
+    const currentAsync = escenario.async || [];
+    updateAsyncArray([...currentAsync, {
+      url: '',
+      method: 'POST',
+      body: '',
+      headers: {}
+    }]);
+  };
+
+  const removeAsyncItem = (index: number) => {
+    const currentAsync = escenario.async || [];
+    const newAsync = currentAsync.filter((_, i) => i !== index);
+    updateAsyncArray(newAsync);
+  };
+
+  const updateAsyncItem = (index: number, updates: Partial<AsyncItemUI>) => {
+    const currentAsync = escenario.async || [];
+    const newAsync = [...currentAsync];
+    newAsync[index] = { ...newAsync[index], ...updates };
+    updateAsyncArray(newAsync);
+  };
   
 
   return (
@@ -428,96 +440,107 @@ export const PanelAjustesIndv = forwardRef<
         </div>
 
 
-
         <div className="border-t border-gray-200 pt-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-md font-bold text-gray-700 dark:text-gray-300 mb-3">Async</h3>
-            <input type="checkbox" 
-            checked={escenario.async?.enabled ?? false} 
-            onChange={(e) => handleStateChange('async.enabled', e.target.checked)} 
-
-            className="h-5 w-5 rounded accent-green-600"/>
+            <button
+              onClick={addAsyncItem}
+              className="text-sm text-yellow-200 font-semibold hover:underline flex items-center gap-1"
+            >
+              <Plus size={16} />
+              Agregar Async
+            </button>
           </div>
 
-          {escenario.async?.enabled && (
-        <div className="pl-4 border-l-2 border-gray-200 space-y-4 pt-4">
+          {escenario.async && escenario.async.length > 0 && (
+            <div className="space-y-4">
+              {escenario.async.map((asyncItem, index) => (
+                <div key={index} className="pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-4 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Async #{index + 1}</span>
+                    <button
+                      onClick={() => removeAsyncItem(index)}
+                      className="text-red-500 hover:text-red-700 font-bold transition-transform duration-200 hover:scale-110"
+                    >
+                      <X />
+                    </button>
+                  </div>
 
-        <EndpointInput
-          method={escenario.async?.method || 'POST'} 
-          path={escenario.async?.url || ''}         
-          onMethodChange={(v) => handleStateChange('async.method', v)} 
-          onPathChange={(v) => handleStateChange('async.url', v)}    
-        />
-    <div>
-      <label className="block text-sm font-bold text-gray-600 mb-2 dark:text-gray-100">Response</label>
-      <textarea
-        value={escenario.async?.body || ''}
-        onChange={(e) => handleStateChange('async.body', e.target.value)}
-        className="w-full bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200"
-        rows={3}
-      />
-    </div>
+                  <EndpointInput
+                    method={asyncItem.method || 'POST'}
+                    path={asyncItem.url || ''}
+                    onMethodChange={(v) => updateAsyncItem(index, { method: v })}
+                    onPathChange={(v) => updateAsyncItem(index, { url: v })}
+                  />
 
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-2 dark:text-gray-100">Body</label>
+                    <textarea
+                      value={asyncItem.body || ''}
+                      onChange={(e) => updateAsyncItem(index, { body: e.target.value })}
+                      className="w-full bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200"
+                      rows={3}
+                    />
+                  </div>
 
-    <div>
-      <label className="block text-sm font-bold text-gray-600 mb-2 dark:text-gray-100">Headers</label>
-      {Object.entries(escenario.async?.headers || {}).map(([key, value], index) => (
-            <div key={index} className="flex items-center gap-2 mb-2 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
-              <input
-                type="text"
-                value={key.startsWith('header-') ? '' : key}
-                onChange={(e) => {
-                  const newKey = e.target.value || `header-${Date.now()}`;
-                  const newHeaders = { ...(escenario.async?.headers || {}) };
-                  delete newHeaders[key];
-                  newHeaders[newKey] = value;
-                  handleStateChange('async.headers', newHeaders);
-                }}
-                className="w-1/3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200
-                          border border-gray-200 dark:border-gray-700 p-2 rounded-lg text-sm
-                          transition-colors duration-300"
-                placeholder="Nombre"
-              />
-              <input
-                type="text"
-                value={value}
-                onChange={(e) => {
-                  const newHeaders = { ...(escenario.async?.headers || {}), [key]: e.target.value };
-                  handleStateChange('async.headers', newHeaders);
-                }}
-                className="w-2/3 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg text-sm text-gray-800 
-                          dark:text-white border border-transparent dark:border-gray-700"
-                placeholder=" "
-              />
-              <button
-                onClick={() => {
-                  const newHeaders = { ...(escenario.async?.headers || {}) };
-                  delete newHeaders[key];
-                  handleStateChange('async.headers', newHeaders);
-                }}
-                className="text-red-500 hover:text-red-700 font-bold transition-transform duration-200 hover:scale-110"
-              >
-                <X />
-              </button>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-2 dark:text-gray-100">Headers</label>
+                    {Object.entries(asyncItem.headers || {}).map(([key, value], headerIndex) => (
+                      <div key={headerIndex} className="flex items-center gap-2 mb-2 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
+                        <input
+                          type="text"
+                          value={key.startsWith('header-') ? '' : key}
+                          onChange={(e) => {
+                            const newKey = e.target.value || `header-${Date.now()}`;
+                            const newHeaders = { ...(asyncItem.headers || {}) };
+                            delete newHeaders[key];
+                            newHeaders[newKey] = value;
+                            updateAsyncItem(index, { headers: newHeaders });
+                          }}
+                          className="w-1/3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200
+                                    border border-gray-200 dark:border-gray-700 p-2 rounded-lg text-sm
+                                    transition-colors duration-300"
+                          placeholder="Nombre"
+                        />
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => {
+                            const newHeaders = { ...(asyncItem.headers || {}), [key]: e.target.value };
+                            updateAsyncItem(index, { headers: newHeaders });
+                          }}
+                          className="w-2/3 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg text-sm text-gray-800
+                                    dark:text-white border border-transparent dark:border-gray-700"
+                          placeholder=" "
+                        />
+                        <button
+                          onClick={() => {
+                            const newHeaders = { ...(asyncItem.headers || {}) };
+                            delete newHeaders[key];
+                            updateAsyncItem(index, { headers: newHeaders });
+                          }}
+                          className="text-red-500 hover:text-red-700 font-bold transition-transform duration-200 hover:scale-110"
+                        >
+                          <X />
+                        </button>
+                      </div>
+                    ))}
+
+                    <button
+                      onClick={() => {
+                        const newHeaders = { ...(asyncItem.headers || {}) };
+                        const uniqueKey = `header-${Date.now()}-${Object.keys(newHeaders).length}`;
+                        newHeaders[uniqueKey] = '';
+                        updateAsyncItem(index, { headers: newHeaders });
+                      }}
+                      className="text-sm text-blue-600 font-semibold mt-2 hover:underline"
+                    >
+                      + Agregar Header
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-
-
-          <button
-            onClick={() => {
-              const newHeaders = { ...(escenario.async?.headers || {}) };
-
-              const uniqueKey = `header-${Date.now()}-${Object.keys(newHeaders).length}`;
-              newHeaders[uniqueKey] = '';
-
-              handleStateChange('async.headers', newHeaders);
-            }}
-            className="text-sm text-blue-600 font-semibold mt-2 hover:underline"
-          >
-            + Agregar Header
-          </button>
-    </div>
-              </div>
           )}
                 </div>
                 </div>
