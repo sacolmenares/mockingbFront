@@ -14,13 +14,11 @@ function mapAsyncConfigToUI(asyncConfig: AsyncConfig | any): AsyncItemUI {
 export function mapBackendToUI(location: Location | any): EscenarioUI {
   const chaos = location.chaos_injection;
 
-  // Manejar async como array o como objeto único (para retrocompatibilidad)
   let asyncArray: AsyncItemUI[] | undefined = undefined;
   if (location.async) {
     if (Array.isArray(location.async)) {
       asyncArray = location.async.map((a: AsyncConfig) => mapAsyncConfigToUI(a));
     } else {
-      // Retrocompatibilidad: si viene como objeto único, convertirlo a array
       asyncArray = [mapAsyncConfigToUI(location.async)];
     }
   }
@@ -36,7 +34,7 @@ export function mapBackendToUI(location: Location | any): EscenarioUI {
     async: asyncArray,
 
     chaosInjection: chaos ?
-       {
+      {
           enabled: true,
           latency: (chaos.latency?.time > 0) ? chaos.latency.time : null,
           latencyProbability: chaos.latency?.probability || null,
