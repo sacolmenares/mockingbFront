@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@lottiefiles/dotlottie-react": "^0.17.13",
     "class-variance-authority": "^0.7.1",
     "cors": "^2.8.5",
     "express": "^5.1.0",

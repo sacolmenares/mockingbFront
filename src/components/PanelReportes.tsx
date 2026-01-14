@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ChevronRight , ChevronLeft} from "lucide-react";
+import { ChevronRight, ChevronLeft } from "lucide-react";
+
 
 interface Reporte {
   recepcion_id: string;
@@ -60,6 +61,12 @@ export function PanelReportes() {
 
   useEffect(() => {
     fetchReportes();
+
+    //Consultar reportes cada 2 segundos para mantenerlo actualizado en tiempo real
+    const intervalo = setInterval(() => {
+      fetchReportes();
+    }, 500);
+    return () => clearInterval(intervalo);
   }, []);
 
   // Filtrado
@@ -105,10 +112,9 @@ export function PanelReportes() {
           <button
             key={col}
             className={`px-4 py-1 rounded-full text-sm font-medium transition-all
-              ${
-                columnasFiltro.includes(col)
-                  ? "bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-md"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-500 hover:via-blue-600 hover:to-blue-700 hover:text-white"
+              ${columnasFiltro.includes(col)
+                ? "bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-md"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-500 hover:via-blue-600 hover:to-blue-700 hover:text-white"
               }`}
             onClick={() => {
               setColumnasFiltro(prev =>
@@ -120,7 +126,7 @@ export function PanelReportes() {
           >
             {col.replace(/_/g, " ")}
           </button>
-        
+
         ))}
       </div>
 
@@ -185,15 +191,14 @@ export function PanelReportes() {
             key={num}
             onClick={() => setPaginaActual(num)}
             className={`px-3 py-1 rounded-lg transition-colors
-              ${
-                num === paginaActual
-                  ? "bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-md"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:via-blue-600 hover:to-blue-700 hover:text-white"
+              ${num === paginaActual
+                ? "bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-md"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:via-blue-600 hover:to-blue-700 hover:text-white"
               }`}
-            >
+          >
             {num}
           </button>
-        
+
         ))}
 
         <button

@@ -38,7 +38,7 @@ export default function Latency({ value, onChange }: LatencyProps) {
     }
 
     const val = Number(raw);
-    if (!Number.isNaN(val) && val >= 0 && val <= 5000) {
+    if (!Number.isNaN(val) && val >= 0 && val <= 10000) {
       if (isControlled) {
         onChange!(val);
       } else {
@@ -48,7 +48,7 @@ export default function Latency({ value, onChange }: LatencyProps) {
   };
 
   // Calcula el porcentaje del slider (para colorear la barra)
-  const porcentaje = (valor / 5000) * 100;
+  const porcentaje = (valor / 10000) * 100;
 
   return (
     <div className="w-full flex items-center gap-4 p-4">
@@ -57,7 +57,7 @@ export default function Latency({ value, onChange }: LatencyProps) {
         <input
           type="range"
           min="0"
-          max="5000"
+          max="10000"
           value={valor}
           onChange={handleSlider}
           className="w-full appearance-none bg-transparent cursor-pointer"
@@ -106,7 +106,7 @@ export default function Latency({ value, onChange }: LatencyProps) {
         <input
           type="number"
           min="0"
-          max="5000"
+          max="10000"
           value={inputValue}
           onChange={handleInput}
           placeholder="0"

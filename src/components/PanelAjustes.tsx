@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { PanelAjustesIndv } from "./PanelAjustesIndv";
 import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
 import { Button } from "./Button";
@@ -7,7 +8,9 @@ import YAML from "yaml";
 import { CircleX, Plus, Trash, Menu, CircleCheck, Pencil } from 'lucide-react';
 import { mapBackendToUI } from "../mapeo/mapeoDatos";
 import type { EscenarioUI } from "../types/escenarioUI";
-import { Card } from "../components/Card"
+import { Card } from "../components/Card";
+import { generateUniqueListen } from "../utils/listenGenerator";
+import { animationLoadingLogo as AnimationLoadingLogo } from "./animationLogo";
 
 function wrapBackendStructure(server: ServerConfig, postgresServers: ServerConfig[] = []) {
   return {
@@ -89,6 +92,8 @@ const getAvailableServers = async (currentList?: ServerOption[]): Promise<Server
 
 
 export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelAjustesProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [serverConfig, setServerConfig] = useState<ServerConfig>(defaultServerConfig);
 
   const handleServerConfigChange = (
@@ -151,6 +156,11 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
     try {
       const data = await getServerConfigFromAPI(serverName);
       console.log("Datos que vienen del backend:", data);
+
+      if (!data) {
+        throw new Error("El backend devolvió null");
+      }
+
       const server: any = data.server_config || data?.http?.servers?.[0];
       if (server) {
         setServerConfig({
@@ -205,19 +215,12 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       const servers = await getAvailableServers(defaultServerList);
       setServerOptions(servers);
 
-      let initialServer = serverFromQuery?.toLowerCase() || servers[0]?.value;
-      setSelectedServer(initialServer);
-
-      const endpoints: Record<string, string> = {
-        Bancrecer: "bancrecer",
-        Sample: "sample",
-        CTS: "cts",
-      };
-      const serverName = endpoints[initialServer] || initialServer;
-      await fetchServerData(serverName);
+      let initialServer = serverFromQuery || (servers[0] ? servers[0].label : "Mockingbird");
+      setSelectedServer(initialServer.toLowerCase());
+      await fetchServerData(initialServer);
     };
     loadServers();
-  }, []);
+  }, [location.search]);
 
 
 
@@ -226,6 +229,9 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       const validName = newServerName.trim();
       if (!validName) throw new Error("Debes ingresar un nombre de servidor");
 
+      // Generar un puerto único aleatorio
+      const uniqueListen = await generateUniqueListen();
+
       const payloadPost = {
         http: {
           servers: [
@@ -233,11 +239,12 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
               name: validName,
               version: "0.0.1",
               logger: true,
-              logger_path: `./log/${validName.toLowerCase()}`,
+              logger_path: `./log/${validName}`
             }
           ]
         }
       };
+
       const postResponse = await fetch(`/api/mock/config?server_name=${validName}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -250,7 +257,11 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
         http: {
           servers: [
             {
-              listen: 1111
+              name: validName,
+              version: "1.0.0",
+              logger: true,
+              logger_path: `./log/${validName}`,
+              listen: uniqueListen
             }
           ]
         }
@@ -263,10 +274,10 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       });
 
       if (!putResponse.ok) throw new Error(`Error al actualizar servidor (PUT ${putResponse.status})`);
+
       setCreatedServerName(validName);
       setShowCreatedServer(true);
       setTimeout(() => setShowCreatedServer(false), 8000);
-      //alert(`Servidor "${validName}" creado y configurado correctamente`);
       await refreshDataAfterSave(validName);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
@@ -280,13 +291,13 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
     try {
       setIsSaving(true);
+      setShowAddServerModal(false); // Cerramos el modal inmediatamente
       await handleCreateServer();
-      setShowAddServerModal(false);
       setNewServerName('');
 
       setTimeout(() => {
         setIsSaving(false);
-        window.location.href = `${window.location.pathname}?server=${encodeURIComponent(serverName)}`;
+        navigate(`${window.location.pathname}?server=${encodeURIComponent(serverName)}`);
       }, 4000);
 
     } catch (error) {
@@ -299,26 +310,32 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
   const handleDeleteServer = async () => {
     try {
-      const response = await fetch(`/api/mock/config?server_name=${selectedServer}`, {
+      setIsSaving(true);
+      setShowDeleteModal(false);
+
+      const response = await fetch(`/api/mock/config?server_name=${encodeURIComponent(selectedServerLabel)}`, {
         method: "DELETE",
       });
+
       if (!response.ok) throw new Error(`Error al eliminar servidor (DELETE ${response.status})`);
 
-      setDeletedServerName(selectedServer); //Para que no actualice durante la alerta
-      setShowDeleteModal(false);
+      setDeletedServerName(selectedServerLabel);
       setShowDeleteAlert(true);
-      setIsSaving(true);
+
       setTimeout(async () => {
-        setShowDeleteAlert(false);
-        setIsSaving(false);
-        await refreshDataAfterSave(selectedServer);
         const updatedServers = await getAvailableServers(serverOptions);
         setServerOptions(updatedServers);
-        setSelectedServer(updatedServers[0]?.value || '');
-        window.location.reload();
+
+        const nextServer = updatedServers[0]?.value || '';
+        setSelectedServer(nextServer);
+        navigate(`${window.location.pathname}${nextServer ? `?server=${encodeURIComponent(nextServer)}` : ''}`);
+
+        setShowDeleteAlert(false);
+        setIsSaving(false);
       }, 5000);
     }
     catch (error) {
+      setIsSaving(false);
       const errorMessage = error instanceof Error ? error.message : "Error al eliminar el servidor.";
       alert(errorMessage);
     }
@@ -330,30 +347,31 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
     try {
       setIsSaving(true);
-      const response = await fetch('/api/mock/config/rename', {
+      setShowEditServerModal(false); // Cerramos el modal inmediatamente
+      const response = await fetch(`/api/mock/config/rename?old_name=${encodeURIComponent(selectedServerLabel)}&new_name=${encodeURIComponent(validName)}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          old_name: selectedServer,
-          new_name: validName,
-        }),
       });
 
       if (!response.ok) {
         throw new Error(`Error al renombrar servidor (POST ${response.status})`);
       }
 
-      setShowEditServerModal(false);
       setNewEditedServerName('');
       setShowSuccessAlert(true);
+
+      // --- ACTUALIZACIÓN ATÓMICA ---
+      // Cambiamos el contexto inmediatamente para que el frontend 
+      // deje de referenciar al nombre antiguo.
+      const updatedServers = await getAvailableServers(serverOptions);
+      setServerOptions(updatedServers);
+
+      const newServerValue = validName.toLowerCase();
+      setSelectedServer(newServerValue);
+      navigate(`${window.location.pathname}?server=${encodeURIComponent(validName)}`);
 
       setTimeout(async () => {
         setShowSuccessAlert(false);
         setIsSaving(false);
-        // Recargar con el nuevo nombre seleccionado
-        window.location.href = `${window.location.pathname}?server=${encodeURIComponent(validName)}`;
       }, 3000);
 
     } catch (error) {
@@ -434,9 +452,9 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   return (
     <div className="p-8 space-y-6">
       {isSaving && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40">
-          <div className="flex flex-col items-center gap-2">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-green-600"></div>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100]">
+          <div className="flex flex-col items-center gap-2 w-48 h-48">
+            <AnimationLoadingLogo />
           </div>
         </div>
       )}
@@ -449,6 +467,7 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
           <Button
             onClick={async () => {
               try {
+                setIsSaving(true); // Mostrar carga inmediatamente
                 const serverName = selectedServer.trim().toLowerCase();
 
                 const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
@@ -513,7 +532,6 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
                 if (response.ok) {
                   setShowSuccessAlert(true);
-                  setIsSaving(true);
                   setTimeout(() => {
                     setShowSuccessAlert(false);
                     setIsSaving(false);
@@ -524,6 +542,7 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
                 const updatedServers = await getAvailableServers(serverOptions);
                 setServerOptions(updatedServers);
               } catch (error) {
+                setIsSaving(false); // Liberar UI en caso de error
                 const errorMessage = error instanceof Error ? error.message : "Error al guardar la configuración del servidor.";
                 alert(errorMessage);
               }
