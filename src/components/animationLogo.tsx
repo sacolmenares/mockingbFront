@@ -29,7 +29,7 @@ export const animationLoadingLogo = () => {
     return (
         <DotLottieReact
             key={isDark ? 'dark' : 'light'}
-            src={isDark ? "animationLoadingWhite.lottie" : "animationLoadingDark.lottie"}
+            src={isDark ? "/animationLoadingWhite.lottie" : "/animationLoadingDark.lottie"}
             loop
             autoplay
         />
