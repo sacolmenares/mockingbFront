@@ -6,7 +6,7 @@ import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
 import { Button } from "./Button";
 import { Dropdown } from "./Dropdown";
 import YAML from "yaml";
-import { CircleX, Plus, Trash, Menu, CircleCheck, Pencil } from 'lucide-react';
+import { CircleX, Plus, Trash, Menu, CircleCheck, Pencil, Undo2 } from 'lucide-react';
 import { mapBackendToUI } from "../mapeo/mapeoDatos";
 import type { EscenarioUI } from "../types/escenarioUI";
 import { Card } from "../components/Card";
@@ -99,6 +99,15 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
     field: keyof ServerConfig,
     value: string | number | null
   ) => {
+    // Crear snapshot antes del primer cambio si no existe
+    if (!previousSnapshot) {
+      console.log("📸 CREANDO SNAPSHOT EN PRIMER CAMBIO");
+      setPreviousSnapshot({
+        serverConfig: { ...serverConfig },
+        escenarios: JSON.parse(JSON.stringify(escenarios))
+      });
+    }
+
     setServerConfig(prevState => ({
       ...prevState,
       [field]: value,
@@ -130,6 +139,10 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   const [deletedServerName, setDeletedServerName] = useState<string | null>(null);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showSaveConfirmModal, setShowSaveConfirmModal] = useState(false);
+  const [showUndoModal, setShowUndoModal] = useState(false);
+  const [showNoChangesModal, setShowNoChangesModal] = useState(false);
+  const [previousSnapshot, setPreviousSnapshot] = useState<{ serverConfig: ServerConfig; escenarios: Escenario[] } | null>(null);
   const agregarEscenario = useCallback(() => {
     setEscenarios(prev => [...prev, { id: Date.now() }]);
   }, []);
@@ -158,8 +171,6 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   };
 
 
-
-
   // Ejecutar GET al seleccionar el nombre 
   const fetchServerData = async (serverName: string) => {
     try {
@@ -171,38 +182,45 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       }
 
       const server: any = data.server_config || data?.http?.servers?.[0];
+      let newServerConfig: ServerConfig;
       if (server) {
-        setServerConfig({
+        newServerConfig = {
           listen: server.listen ?? defaultServerConfig.listen,
           logger: server.logger ?? defaultServerConfig.logger,
           name: server.name ?? defaultServerConfig.name,
           logger_path: server.logger_path ?? defaultServerConfig.logger_path,
           version: server.version ?? defaultServerConfig.version,
-        });
+        };
+        setServerConfig(newServerConfig);
       } else {
-        setServerConfig({
+        newServerConfig = {
           ...defaultServerConfig,
           name: serverName.charAt(0).toUpperCase() + serverName.slice(1),
-        });
+        };
+        setServerConfig(newServerConfig);
       }
 
       const locations = data?.http?.servers?.[0]?.location;
+      let newEscenarios: Escenario[];
       if (Array.isArray(locations) && locations.length > 0) {
-        const nuevosEscenarios = locations.map((esc: any) => ({
+        newEscenarios = locations.map((esc: any) => ({
           id: Date.now() + Math.random(),
           data: mapBackendToUI(esc),
         }));
-        setEscenarios(nuevosEscenarios);
+        setEscenarios(newEscenarios);
       } else {
-        setEscenarios([{ id: Date.now() }]);
+        newEscenarios = [{ id: Date.now() }];
+        setEscenarios(newEscenarios);
       }
     } catch (error) {
       console.log("Error al cargar servidor, usando configuración por defecto:", error);
-      setServerConfig({
+      const newServerConfig = {
         ...defaultServerConfig,
         name: serverName.charAt(0).toUpperCase() + serverName.slice(1),
-      });
-      setEscenarios([{ id: Date.now() }]);
+      };
+      const newEscenarios = [{ id: Date.now() }];
+      setServerConfig(newServerConfig);
+      setEscenarios(newEscenarios);
     }
   };
 
@@ -214,6 +232,116 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
         resolve();
       }, 500);
     });
+
+  const handleSaveConfiguration = async () => {
+    try {
+      setIsSaving(true);
+      const serverName = selectedServer.trim().toLowerCase();
+
+      const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
+      const doc = YAML.parseDocument(originalYaml);
+
+      const locationsData = getActiveLocations();
+
+      const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
+      const originalLocationsRaw = doc.getIn(["http", "servers", 0, "location"]);
+      const originalLocations: any[] = Array.isArray(originalLocationsRaw) ? originalLocationsRaw : [];
+
+      const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
+
+      for (const key of serverKeys) {
+        const prevVal = originalServer?.[key] ?? null;
+        let nextVal: string | number | boolean | null = serverConfig[key];
+
+        if (key === "logger") {
+          if (typeof nextVal === "string") {
+            if (nextVal.toLowerCase() === "true") nextVal = true;
+            else if (nextVal.toLowerCase() === "false") nextVal = false;
+          }
+        }
+
+        if (prevVal !== nextVal) {
+          doc.setIn(["http", "servers", 0, key], nextVal);
+        }
+      }
+
+      if (locationsData && locationsData.length > 0) {
+        const locationsChanged = JSON.stringify(originalLocations) !== JSON.stringify(locationsData);
+        if (locationsChanged) {
+          doc.setIn(["http", "servers", 0, "location"], locationsData);
+        }
+      } else if (locationsData.length === 0 && originalLocations.length > 0) {
+        console.warn("No se encontraron locations activas, manteniendo las originales");
+      } else {
+        doc.setIn(["http", "servers", 0, "location"], locationsData);
+      }
+
+      const jsonData = doc.getIn(["http", "servers", 0]);
+      const payload = wrapBackendStructure(jsonData as ServerConfig);
+
+      const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      console.log("JSON enviado al back", JSON.stringify(payload, null, 2))
+
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+      setShowSuccessAlert(true);
+      setTimeout(() => {
+        setShowSuccessAlert(false);
+        setIsSaving(false);
+      }, 4000);
+
+      await refreshDataAfterSave(serverName);
+      const updatedServers = await getAvailableServers(serverOptions);
+      setServerOptions(updatedServers);
+    } catch (error) {
+      setIsSaving(false);
+      const errorMessage = error instanceof Error ? error.message : "Error al guardar la configuración del servidor.";
+      alert(errorMessage);
+    }
+  };
+
+
+  const handleUndoChanges = () => {
+    if (previousSnapshot) {
+
+      const snapshotToRestore = {
+        serverConfig: { ...previousSnapshot.serverConfig },
+        escenarios: JSON.parse(JSON.stringify(previousSnapshot.escenarios))
+      };
+
+      setIsSaving(true);
+      setShowUndoModal(false);
+
+      setPreviousSnapshot(null);
+
+      setTimeout(() => {
+
+        setServerConfig(snapshotToRestore.serverConfig);
+        setEscenarios(snapshotToRestore.escenarios);
+
+        setTimeout(() => {
+          const currentIds = snapshotToRestore.escenarios.map((e: Escenario) => e.id);
+          Object.keys(panelRefs.current).forEach(key => {
+            const numKey = parseInt(key);
+            if (!currentIds.includes(numKey)) {
+              delete panelRefs.current[numKey];
+            }
+          });
+
+          setIsSaving(false);
+        }, 500);
+      }, 100);
+    } else {
+      console.log("NO HAY SNAPSHOT PARA RESTAURAR");
+    }
+  };
+
 
 
   useEffect(() => {
@@ -489,93 +617,33 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
             Configuración del Servidor
           </h2>
 
-          <Button
-            onClick={async () => {
-              try {
-                setIsSaving(true); // Mostrar carga inmediatamente
-                const serverName = selectedServer.trim().toLowerCase();
-
-                const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
-                //console.log("YAML original obtenido:\n", originalYaml);
-
-                const doc = YAML.parseDocument(originalYaml);
-
-                const locationsData = getActiveLocations();
-
-                const originalServer: any = doc.getIn(["http", "servers", 0]) || {};
-                const originalLocationsRaw = doc.getIn(["http", "servers", 0, "location"]);
-                const originalLocations: any[] = Array.isArray(originalLocationsRaw) ? originalLocationsRaw : [];
-
-                const serverKeys: (keyof ServerConfig)[] = ["listen", "logger", "name", "logger_path", "version"];
-
-
-                //const hasServerChanges = serverKeys.some((k) => (originalServer?.[k] ?? null) !== serverConfig[k]);
-                for (const key of serverKeys) {
-                  const prevVal = originalServer?.[key] ?? null;
-                  let nextVal: string | number | boolean | null = serverConfig[key];
-
-                  // Si el usuario ingresa manualmente un valor, se convierte a string
-                  if (key === "logger") {
-                    if (typeof nextVal === "string") {
-                      if (nextVal.toLowerCase() === "true") nextVal = true;
-                      else if (nextVal.toLowerCase() === "false") nextVal = false;
-                    }
-                  }
-
-                  if (prevVal !== nextVal) {
-                    doc.setIn(["http", "servers", 0, key], nextVal);
-                  }
-                }
-
-                if (locationsData && locationsData.length > 0) {
-                  const locationsChanged = JSON.stringify(originalLocations) !== JSON.stringify(locationsData);
-                  if (locationsChanged) {
-                    doc.setIn(["http", "servers", 0, "location"], locationsData);
-                  }
-                } else if (locationsData.length === 0 && originalLocations.length > 0) {
-                  console.warn("No se encontraron locations activas, manteniendo las originales");
+          <div className="flex gap-3 items-center">
+            <Button
+              onClick={() => {
+                if (previousSnapshot) {
+                  setShowUndoModal(true);
                 } else {
-                  doc.setIn(["http", "servers", 0, "location"], locationsData);
+                  setShowNoChangesModal(true);
                 }
-                const jsonData = doc.getIn(["http", "servers", 0]);
-                const payload = wrapBackendStructure(jsonData as ServerConfig);
-
-                const response = await fetch(`/api/mock/config?server_name=${serverName}`, {
-                  method: "PUT",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify(payload),
-                });
-                console.log("JSON enviado al back", JSON.stringify(payload, null, 2))
-
-                if (!response.ok)
-                  throw new Error(`Error HTTP: ${response.status}`);
-                if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-                setShowSuccessAlert(true);
-
-                if (response.ok) {
-                  setShowSuccessAlert(true);
-                  setTimeout(() => {
-                    setShowSuccessAlert(false);
-                    setIsSaving(false);
-                  }, 4000);
-                }
-                //alert(`Configuración del servidor "${selectedServerLabel}" actualizada correctamente`);
-                await refreshDataAfterSave(serverName);
-                const updatedServers = await getAvailableServers(serverOptions);
-                setServerOptions(updatedServers);
-              } catch (error) {
-                setIsSaving(false); // Liberar UI en caso de error
-                const errorMessage = error instanceof Error ? error.message : "Error al guardar la configuración del servidor.";
-                alert(errorMessage);
-              }
-            }}
-            variant="ghost"
-            gradientColors="from-blue-500 via-blue-600 to-blue-700"
-          >
-            Guardar cambios
-          </Button>
+              }}
+              variant="ghost"
+              gradientColors="from-orange-500 via-orange-600 to-orange-700"
+              className="flex items-center gap-2"
+              title="Deshacer cambios y volver a la configuración anterior"
+            >
+              <Undo2 size={18} />
+              Deshacer cambios
+            </Button>
+            <Button
+              onClick={() => {
+                setShowSaveConfirmModal(true);
+              }}
+              variant="ghost"
+              gradientColors="from-blue-500 via-blue-600 to-blue-700"
+            >
+              Guardar cambios
+            </Button>
+          </div>
           {showSuccessAlert && (
             <div
               className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-success flex items-center gap-4 shadow-lg rounded-md p-4 bg-green-500 text-white"
@@ -942,9 +1010,103 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
           </div>
         </div>
       )}
+
+      {/* Modal de confirmación para guardar cambios */}
+      {showSaveConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-2xl text-gray-900 dark:text-white mb-4 text-center">
+              ¿Guardar cambios en el servidor
+              <br />
+              <span className="font-semibold text-blue-500">
+                {selectedServerLabel}
+              </span>
+              ?
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
+              Se guardarán todos los cambios realizados en la configuración del servidor y sus endpoints.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={() => {
+                  setShowSaveConfirmModal(false);
+                }}
+                variant="ghost"
+                gradientColors="from-gray-400 via-gray-500 to-gray-600"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowSaveConfirmModal(false);
+                  handleSaveConfiguration();
+                }}
+                variant="ghost"
+                gradientColors="from-blue-500 via-blue-600 to-blue-700"
+              >
+                Sí, guardar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para deshacer cambios */}
+      {showUndoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-2xl text-gray-900 dark:text-white mb-4 text-center">
+              ¿Deshacer cambios?
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
+              Se revertirán todos los cambios no guardados y volverás a la configuración anterior.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={() => {
+                  setShowUndoModal(false);
+                }}
+                variant="ghost"
+                gradientColors="from-gray-400 via-gray-500 to-gray-600"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleUndoChanges}
+                variant="ghost"
+                gradientColors="from-orange-500 via-orange-600 to-orange-700"
+              >
+                Sí, deshacer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal informativo cuando no hay cambios para revertir */}
+      {showNoChangesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-2xl text-gray-900 dark:text-white mb-4 text-center">
+              No hay cambios para revertir
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
+              No se han realizado cambios desde el último guardado o no hay un punto de restauración disponible.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={() => {
+                  setShowNoChangesModal(false);
+                }}
+                variant="ghost"
+                gradientColors="from-blue-500 via-blue-600 to-blue-700"
+              >
+                Entendido
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
-// Animaciones removidas: ahora se usa framer-motion para las transiciones.
