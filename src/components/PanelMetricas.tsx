@@ -263,22 +263,23 @@ export function PanelMetricas() {
       >
         <Info size={24} />
       </Button>
-      <AnimatePresence>
+      <AnimatePresence mode="sync">
         {showInfoModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
+          <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-[100]">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              transition={{ duration: 0.08 }}
+              className="absolute inset-0 backdrop-blur-sm"
               onClick={() => setShowInfoModal(false)}
             />
 
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.98, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0, transition: { duration: 0.1 } }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              exit={{ scale: 0.98, opacity: 0 }}
+              transition={{ duration: 0.08, ease: "easeOut" }}
               className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-xl mx-4 max-h-[80vh] overflow-y-auto border border-gray-200 dark:border-gray-700"
             >
               <button
