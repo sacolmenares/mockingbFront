@@ -90,8 +90,6 @@ const getAvailableServers = async (currentList?: ServerOption[]): Promise<Server
 };
 
 
-
-
 export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelAjustesProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -110,7 +108,6 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
   const [escenarios, setEscenarios] = useState<Escenario[]>([{ id: Date.now() }]);
   const panelRefs = useRef<{ [key: number]: PanelAjustesIndvRef | null }>({});
-  const [eliminando, setEliminando] = useState<number | null>(null);
   const [reseteando, _setReseteando] = useState(false);
   const [selectedServer, setSelectedServer] = useState<string>('Mockingbird');
   const [serverOptions, setServerOptions] = useState<ServerOption[]>([
@@ -131,12 +128,13 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   const [createdServerName, setCreatedServerName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [deletedServerName, setDeletedServerName] = useState<string | null>(null);
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const agregarEscenario = useCallback(() => {
     setEscenarios(prev => [...prev, { id: Date.now() }]);
   }, []);
 
   const eliminarEscenario = useCallback((id: number) => {
-    setEliminando(id);
     setTimeout(() => {
       setEscenarios(prev => prev.filter((e) => e.id !== id));
 
@@ -144,7 +142,6 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
         panelRefs.current[id] = null;
       }
       delete panelRefs.current[id];
-      setEliminando(null);
     }, 400);
   }, []);
 
@@ -246,7 +243,7 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
 
 
-  const handleCreateServer = async () => {
+  const handleCreateServer = async (): Promise<boolean> => {
     try {
       const validName = newServerName.trim();
       if (!validName) throw new Error("Debes ingresar un nombre de servidor");
@@ -271,6 +268,13 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadPost),
       });
+
+      if (postResponse.status === 409) {
+        setErrorMessage(`No se pudo crear el servidor "${validName}" porque ese nombre ya está asociado a un servidor existente`);
+        setShowErrorAlert(true);
+        setTimeout(() => setShowErrorAlert(false), 5000);
+        return false;
+      }
 
       if (!postResponse.ok) throw new Error(`Error al crear servidor (POST ${postResponse.status})`);
 
@@ -298,11 +302,13 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
       setCreatedServerName(validName);
       setShowCreatedServer(true);
-      setTimeout(() => setShowCreatedServer(false), 8000);
+      setTimeout(() => setShowCreatedServer(false), 5000);
       await refreshDataAfterSave(validName);
+      return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Error al crear el servidor.";
       alert(errorMessage);
+      return false;
     }
   };
 
@@ -313,13 +319,17 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
     try {
       setIsSaving(true);
       setShowAddServerModal(false);
-      await handleCreateServer();
+      const success = await handleCreateServer();
       setNewServerName('');
 
-      setTimeout(() => {
+      if (success) {
+        setTimeout(() => {
+          setIsSaving(false);
+          navigate(`${window.location.pathname}?server=${encodeURIComponent(serverName)}`);
+        }, 4000);
+      } else {
         setIsSaving(false);
-        navigate(`${window.location.pathname}?server=${encodeURIComponent(serverName)}`);
-      }, 4000);
+      }
 
     } catch (error) {
       setIsSaving(false);
@@ -590,6 +600,18 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
                 Servidor{" "}
                 <span className="font-semibold">{createdServerName}</span>{" "}
                 creado y configurado correctamente
+              </p>
+            </div>
+          )}
+
+          {showErrorAlert && (
+            <div
+              className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 alert alert-error flex items-center gap-4 shadow-lg rounded-md p-4 bg-red-500 text-white"
+              role="alert"
+            >
+              <span><CircleX size={20} /> </span>
+              <p className="text-xl font-italic dark:text-white">
+                {errorMessage}
               </p>
             </div>
           )}
