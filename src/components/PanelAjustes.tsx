@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PanelAjustesIndv } from "./PanelAjustesIndv";
 import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
@@ -131,16 +131,27 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   const [createdServerName, setCreatedServerName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [deletedServerName, setDeletedServerName] = useState<string | null>(null);
-  const agregarEscenario = () => { setEscenarios([...escenarios, { id: Date.now() }]); };
-  const eliminarEscenario = (id: number) => {
+  const agregarEscenario = useCallback(() => {
+    setEscenarios(prev => [...prev, { id: Date.now() }]);
+  }, []);
+
+  const eliminarEscenario = useCallback((id: number) => {
     setEliminando(id);
     setTimeout(() => {
-      setEscenarios(escenarios.filter((e) => e.id !== id));
+      setEscenarios(prev => prev.filter((e) => e.id !== id));
+
+      if (panelRefs.current[id]) {
+        panelRefs.current[id] = null;
+      }
       delete panelRefs.current[id];
       setEliminando(null);
     }, 400);
-  };
-  const selectedServerLabel = serverOptions.find(s => s.value === selectedServer)?.label ?? selectedServer;
+  }, []);
+
+  const selectedServerLabel = useMemo(
+    () => serverOptions.find(s => s.value === selectedServer)?.label ?? selectedServer,
+    [serverOptions, selectedServer]
+  );
   const handleServerChange = (newServer: string) => { //Para el query params
     setSelectedServer(newServer);
     const url = new URL(window.location.href);
@@ -209,19 +220,28 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
 
   useEffect(() => {
+    let isMounted = true;
     const params = new URLSearchParams(window.location.search);
     const serverFromQuery = params.get("server");
 
     const loadServers = async () => {
       const servers = await getAvailableServers(defaultServerList);
+      if (!isMounted) return;
+
       setServerOptions(servers);
 
       let initialServer = serverFromQuery || (servers[0] ? servers[0].label : "Mockingbird");
       setSelectedServer(initialServer.toLowerCase());
       await fetchServerData(initialServer);
+      if (!isMounted) return;
+
       setShowDropdown(false);
     };
     loadServers();
+
+    return () => {
+      isMounted = false;
+    };
   }, [location.search]);
 
 
@@ -759,37 +779,31 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
         </motion.div>
       )}
 
-      <AnimatePresence mode="popLayout">
-        {!reseteando && escenarios.map((escenario, index) => (
-          <motion.div
-            key={escenario.id}
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-            layout
-            className="relative border border-gray-300 dark:border-gray-700 rounded-2xl p-6 bg-gray-50 dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300"
+      {!reseteando && escenarios.map((escenario, index) => (
+        <div
+          key={escenario.id}
+          className="endpoint-panel relative border border-gray-300 dark:border-gray-700 rounded-2xl p-6 bg-gray-50 dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300"
+          style={{ animationDelay: `${index * 50}ms` }}
+        >
+
+          <Button
+            onClick={() => eliminarEscenario(escenario.id)}
+            variant={"ghost"}
+            className="absolute top-3 right-3 w-10 h-10 p-0 flex items-center justify-center font-bold text-lg rounded-full bg-white/80 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 z-10 shadow-sm hover:scale-110"
+            title="Eliminar endpoint"
           >
+            <CircleX size={20} style={{ color: '#B91C1C' }} />
+          </Button>
 
-            <Button
-              onClick={() => eliminarEscenario(escenario.id)}
-              variant={"ghost"}
-              className="absolute top-3 right-3 w-10 h-10 p-0 flex items-center justify-center font-bold text-lg rounded-full bg-white/80 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 z-10 shadow-sm hover:scale-110"
-              title="Eliminar endpoint"
-            >
-              <CircleX size={20} style={{ color: '#B91C1C' }} />
-            </Button>
-
-            <PanelAjustesIndv
-              ref={(ref) => {
-                panelRefs.current[escenario.id] = ref;
-              }}
-              initialData={escenario.data}
-              selectedServer={selectedServer}
-            />
-          </motion.div>
-        ))}
-      </AnimatePresence>
+          <PanelAjustesIndv
+            ref={(ref) => {
+              panelRefs.current[escenario.id] = ref;
+            }}
+            initialData={escenario.data}
+            selectedServer={selectedServer}
+          />
+        </div>
+      ))}
 
       <div className="pt-6 flex justify-start">
         <Button

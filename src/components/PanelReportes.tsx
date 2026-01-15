@@ -199,6 +199,8 @@ export function PanelReportes() {
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0, transition: { duration: 0.2 } }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-lg mx-4 relative border border-gray-200 dark:border-gray-700"
             >
               <button
@@ -352,7 +354,7 @@ export function PanelReportes() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               onClick={() => setReporteSeleccionado(null)}
             />

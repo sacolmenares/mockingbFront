@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "./Button";
 import { Info, CircleX, CircleCheck } from 'lucide-react';
 import { animationLoadingLogo as AnimationLoadingLogo } from "./animationLogo";
-
+import { motion, AnimatePresence } from "framer-motion";
 
 let isStyleInjected = false;
 function injectAnimationStyles() {
@@ -263,65 +263,87 @@ export function PanelMetricas() {
       >
         <Info size={24} />
       </Button>
-      {showInfoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 fade-in fade-out">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-xl mx-4 relative max-h-[80vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">
-              Cómo visualizar las métricas
-            </h2>
+      <AnimatePresence>
+        {showInfoModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowInfoModal(false)}
+            />
 
-            <p className="mb-3 text-gray-700 dark:text-gray-300">
-              Esta sección te permite visualizar métricas de tus dashboards de Grafana de manera rápida y organizada.
-            </p>
-
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">1. URL Base</h3>
-            <p className="mb-3 text-gray-700 dark:text-gray-300">
-              Por defecto es <code>http://localhost:3000</code>, ya que normalmente Grafana se ejecuta en tu computadora. <br />
-              Si tu servidor Grafana está en otra dirección, cámbiala aquí.
-            </p>
-
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">2. Dashboard ID</h3>
-            <p className="mb-3 text-gray-700 dark:text-gray-300">
-              Cada dashboard de Grafana tiene un ID único (por ejemplo: <code>addn4pp</code>).
-              <br />Coloca aquí el ID del dashboard que quieres monitorear.
-            </p>
-
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">3. Frecuencia de actualización</h3>
-            <p className="mb-3 text-gray-700 dark:text-gray-300">
-              Selecciona cada cuánto tiempo deseas actualizar los datos del panel: último minuto, última hora, últimas 24 horas, etc...
-            </p>
-
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">4. Paneles individuales</h3>
-            <p className="mb-3 text-gray-700 dark:text-gray-300">
-              Cada cuadro representa un panel de métricas específico (requests, latencia, errores, recursos).  <br />
-              - Ingresa el <strong>ID del panel</strong> correspondiente de Grafana.  <br />
-              - Puedes agregar nuevos paneles con<span className="font-bold text-green-600 dark:text-green-400"><strong>" + Agregar Panel "</strong></span>. <br />
-              - Para eliminar un panel, haz clic en ✕ (mínimo 3 paneles activos).
-            </p>
-
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">5. Visualización</h3>
-            <p className="mb-3 text-gray-700 dark:text-gray-300">
-              Cada panel se muestra como un <em>iframe</em> que carga el gráfico correspondiente desde Grafana. <br />
-              Puedes ver las métricas en tiempo real según el rango de tiempo seleccionado.
-            </p>
-
-            <p className="mb-3 text-gray-700 dark:text-gray-300">
-              Una vez realizados los cambios, haz clic en <span className="font-bold text-blue-600 dark:text-blue-400"><strong>" ✓ Aplicar Cambios "</strong></span> para actualizar el panel.
-            </p>
-
-            <div className="flex justify-end mt-6">
-              <Button
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0, transition: { duration: 0.1 } }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-xl mx-4 max-h-[80vh] overflow-y-auto border border-gray-200 dark:border-gray-700"
+            >
+              <button
                 onClick={() => setShowInfoModal(false)}
-                variant="ghost"
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 
-          dark:text-gray-300 absolute top-4 right-4"
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                title="Cerrar"
               >
-                <CircleX size={20} />
-              </Button>
-            </div>
+                <CircleX size={24} />
+              </button>
+
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                <Info className="text-blue-500" />
+                Cómo visualizar las métricas
+              </h2>
+
+              <div className="space-y-4 text-gray-700 dark:text-gray-300">
+                <p>
+                  Esta sección te permite visualizar métricas de tus dashboards de Grafana de manera rápida y organizada.
+                </p>
+
+                <section>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">1. URL Base</h3>
+                  <p className="text-sm">
+                    Por defecto es <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">http://localhost:3000</code>, ya que normalmente Grafana se ejecuta en tu computadora. Si tu servidor Grafana está en otra dirección, cámbiala aquí.
+                  </p>
+                </section>
+
+                <section>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">2. Dashboard ID</h3>
+                  <p className="text-sm">
+                    Cada dashboard de Grafana tiene un ID único (por ejemplo: <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">addn4pp</code>). Coloca aquí el ID del dashboard que quieres monitorear.
+                  </p>
+                </section>
+
+                <section>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">3. Frecuencia de actualización</h3>
+                  <p className="text-sm">
+                    Selecciona cada cuánto tiempo deseas actualizar los datos del panel: último minuto, última hora, últimas 24 horas, etc.
+                  </p>
+                </section>
+
+                <section>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">4. Paneles individuales</h3>
+                  <p className="text-sm">
+                    Cada cuadro representa un panel de métricas específico (requests, latencia, errores, recursos). Ingresa el <strong>ID del panel</strong> correspondiente de Grafana. Puedes agregar nuevos paneles con <span className="font-bold text-green-600 dark:text-green-400">"+ Agregar Panel"</span>. Para eliminar un panel, haz clic en ✕ (mínimo 3 paneles activos).
+                  </p>
+                </section>
+
+                <section>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">5. Visualización</h3>
+                  <p className="text-sm">
+                    Cada panel se muestra como un <em>iframe</em> que carga el gráfico correspondiente desde Grafana. Puedes ver las métricas en tiempo real según el rango de tiempo seleccionado.
+                  </p>
+                </section>
+
+                <section className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-sm">
+                    Una vez realizados los cambios, haz clic en <span className="font-bold text-blue-600 dark:text-blue-400">"✓ Aplicar Cambios"</span> para actualizar el panel.
+                  </p>
+                </section>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-6 text-center">
         Métricas
