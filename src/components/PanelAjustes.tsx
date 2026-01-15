@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PanelAjustesIndv } from "./PanelAjustesIndv";
 import type { PanelAjustesIndvRef } from "./PanelAjustesIndv";
@@ -291,7 +292,7 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
     try {
       setIsSaving(true);
-      setShowAddServerModal(false); 
+      setShowAddServerModal(false);
       await handleCreateServer();
       setNewServerName('');
 
@@ -347,8 +348,8 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 
     try {
       setIsSaving(true);
-      setShowDropdown(false); 
-      setShowEditServerModal(false); 
+      setShowDropdown(false);
+      setShowEditServerModal(false);
       const response = await fetch(`/api/mock/config/rename?old_name=${encodeURIComponent(selectedServerLabel)}&new_name=${encodeURIComponent(validName)}`, {
         method: 'POST',
       });
@@ -745,45 +746,50 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       </div>
 
       {reseteando && (
-        <div className="flex justify-center items-center py-8 animate-fadeInSimple">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="flex justify-center items-center py-8"
+        >
           <div className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
             <span className="ml-3 text-gray-600 font-medium">Aplicando ajustes...</span>
           </div>
-        </div>
+        </motion.div>
       )}
 
-      {!reseteando && escenarios.map((escenario, index) => (
-        <div
-          key={escenario.id}
-          className={`panel-container relative border border-gray-300 dark:border-gray-700 rounded-2xl p-6 bg-gray-50 dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 ${eliminando === escenario.id
-            ? 'animate-slideOut'
-            : 'animate-slideIn'
-            }`}
-          style={{
-            animationDelay: eliminando === escenario.id ? '0ms' : `${index * 150}ms`,
-            overflow: eliminando === escenario.id ? 'hidden' : 'visible'
-          }}
-        >
-
-          <Button
-            onClick={() => eliminarEscenario(escenario.id)}
-            variant={"ghost"}
-            className="eliminate-btn absolute top-3 right-3 w-10 h-10 p-0 flex items-center justify-center font-bold text-lg rounded-full bg-white/80 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 z-10 shadow-sm"
-            title="Eliminar endpoint"
+      <AnimatePresence mode="popLayout">
+        {!reseteando && escenarios.map((escenario, index) => (
+          <motion.div
+            key={escenario.id}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+            transition={{ duration: 0.3, delay: index * 0.05 }}
+            layout
+            className="relative border border-gray-300 dark:border-gray-700 rounded-2xl p-6 bg-gray-50 dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300"
           >
-            <CircleX size={20} style={{ color: '#B91C1C' }} />
-          </Button>
 
-          <PanelAjustesIndv
-            ref={(ref) => {
-              panelRefs.current[escenario.id] = ref;
-            }}
-            initialData={escenario.data}
-            selectedServer={selectedServer}
-          />
-        </div>
-      ))}
+            <Button
+              onClick={() => eliminarEscenario(escenario.id)}
+              variant={"ghost"}
+              className="absolute top-3 right-3 w-10 h-10 p-0 flex items-center justify-center font-bold text-lg rounded-full bg-white/80 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 z-10 shadow-sm hover:scale-110"
+              title="Eliminar endpoint"
+            >
+              <CircleX size={20} style={{ color: '#B91C1C' }} />
+            </Button>
+
+            <PanelAjustesIndv
+              ref={(ref) => {
+                panelRefs.current[escenario.id] = ref;
+              }}
+              initialData={escenario.data}
+              selectedServer={selectedServer}
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
 
       <div className="pt-6 flex justify-start">
         <Button
@@ -905,80 +911,4 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
 }
 
 
-// Animaciones al aparecer el panel
-const style = document.createElement("style");
-style.innerHTML = `
-@keyframes fadeInSimple {
-  from { 
-    opacity: 0; 
-  }
-  to { 
-    opacity: 1; 
-  }
-}
-
-.animate-fadeInSimple {
-  animation: fadeInSimple 0.5s ease-out forwards;
-}
-
-@keyframes fadeInUp {
-  0% { 
-    opacity: 0; 
-    transform: translateY(30px) scale(0.96); 
-    filter: blur(4px);
-  }
-  60% {
-    opacity: 0.8;
-    transform: translateY(-5px) scale(0.99);
-    filter: blur(1px);
-  }
-  100% { 
-    opacity: 1; 
-    transform: translateY(0) scale(1); 
-    filter: blur(0);
-  }
-}
-
-@keyframes fadeOutDown {
-  0% { 
-    opacity: 1; 
-    transform: translateY(0) scale(1); 
-    filter: blur(0);
-  }
-  30% {
-    opacity: 0.7;
-    transform: translateY(5px) scale(0.99);
-    filter: blur(0.5px);
-  }
-  100% { 
-    opacity: 0; 
-    transform: translateY(30px) scale(0.96); 
-    filter: blur(4px);
-  }
-}
-
-.animate-slideIn {
-  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-slideOut {
-  animation: fadeOutDown 0.4s cubic-bezier(0.7, 0, 0.84, 0) forwards;
-}
-
-/* Efecto de hover sutil para el botón de eliminar */
-.eliminate-btn {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  transform: scale(1);
-}
-
-.eliminate-btn:hover {
-  transform: scale(1.1);
-  filter: drop-shadow(0 4px 8px rgba(239, 68, 68, 0.3));
-}
-
-/* Transición suave para el contenedor */
-.panel-container {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-`;
-document.head.appendChild(style);
+// Animaciones removidas: ahora se usa framer-motion para las transiciones.
