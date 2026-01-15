@@ -142,6 +142,8 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   const [showSaveConfirmModal, setShowSaveConfirmModal] = useState(false);
   const [showUndoModal, setShowUndoModal] = useState(false);
   const [showNoChangesModal, setShowNoChangesModal] = useState(false);
+  const [showDuplicatePortModal, setShowDuplicatePortModal] = useState(false);
+  const [duplicatePortServer, setDuplicatePortServer] = useState<string>("");
   const [previousSnapshot, setPreviousSnapshot] = useState<{ serverConfig: ServerConfig; escenarios: Escenario[] } | null>(null);
   const agregarEscenario = useCallback(() => {
     setEscenarios(prev => [...prev, { id: Date.now() }]);
@@ -225,6 +227,36 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   };
 
 
+  const checkDuplicatePort = async (port: number | null, currentServerName: string): Promise<{ isDuplicate: boolean; serverName: string }> => {
+    if (!port) return { isDuplicate: false, serverName: "" };
+
+    try {
+      const servers = await getAvailableServers(serverOptions);
+
+      for (const server of servers) {
+        if (server.label.toLowerCase() === currentServerName.toLowerCase()) {
+          continue;
+        }
+
+        try {
+          const data = await getServerConfigFromAPI(server.label);
+          const serverConfig = data.server_config || data?.http?.servers?.[0];
+
+          if (serverConfig && serverConfig.listen === port) {
+            return { isDuplicate: true, serverName: server.label };
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      return { isDuplicate: false, serverName: "" };
+    } catch (error) {
+      console.error("Error verificando puertos duplicados:", error);
+      return { isDuplicate: false, serverName: "" };
+    }
+  };
+
   const refreshDataAfterSave = (serverName: string) =>
     new Promise<void>((resolve) => {
       setTimeout(async () => {
@@ -237,6 +269,15 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
     try {
       setIsSaving(true);
       const serverName = selectedServer.trim().toLowerCase();
+
+      // Validar puerto duplicado antes de guardar
+      const portCheck = await checkDuplicatePort(serverConfig.listen, selectedServerLabel);
+      if (portCheck.isDuplicate) {
+        setDuplicatePortServer(portCheck.serverName);
+        setShowDuplicatePortModal(true);
+        setIsSaving(false);
+        return; // Detener el guardado
+      }
 
       const originalYaml = await fetch(`/api/mock/config?server_name=${serverName}`).then(res => res.text());
       const doc = YAML.parseDocument(originalYaml);
@@ -1100,6 +1141,33 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
                 }}
                 variant="ghost"
                 gradientColors="from-blue-500 via-blue-600 to-blue-700"
+              >
+                Entendido
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de error para puerto duplicado */}
+      {showDuplicatePortModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 border-l-4 border-red-500">
+            <h3 className="text-2xl text-gray-900 dark:text-white mb-4 text-center">
+              Puerto duplicado
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
+              El puerto <span className="font-bold text-gray-800 dark:text-gray-200">{serverConfig.listen}</span> ya está siendo utilizado por el servidor <span className="font-bold text-blue-500">{duplicatePortServer}</span>.
+              <br /><br />
+              Por favor, elige un puerto diferente para evitar conflictos.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={() => {
+                  setShowDuplicatePortModal(false);
+                }}
+                variant="ghost"
+                gradientColors="from-gray-500 via-gray-600 to-gray-700"
               >
                 Entendido
               </Button>
