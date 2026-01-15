@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, ChevronLeft, Copy, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, Copy, X, Info, CircleX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "./Button";
 
 interface Reporte {
   recepcion_id: string;
@@ -81,6 +82,7 @@ export function PanelReportes() {
 
   const [columnasFiltro, setColumnasFiltro] = useState<string[]>([]);
   const [showToast, setShowToast] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const handleCopy = (text: any) => {
     const content = typeof text === "string" ? text : JSON.stringify(text, null, 2);
     navigator.clipboard.writeText(content).then(() => {
@@ -162,27 +164,86 @@ export function PanelReportes() {
       </div>
 
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        {columnas.map(col => (
-          <button
-            key={col}
-            className={`px-4 py-1 rounded-full text-sm font-medium transition-all
-              ${columnasFiltro.includes(col)
-                ? "bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-md"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-500 hover:via-blue-600 hover:to-blue-700 hover:text-white"
-              }`}
-            onClick={() => {
-              setColumnasFiltro(prev =>
-                prev.includes(col)
-                  ? prev.filter(c => c !== col)
-                  : [...prev, col]
-              );
-            }}
-          >
-            {col.replace(/_/g, " ")}
-          </button>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div className="flex flex-wrap gap-2">
+          {columnas.map(col => (
+            <button
+              key={col}
+              className={`px-4 py-1 rounded-full text-sm font-medium transition-all
+                ${columnasFiltro.includes(col)
+                  ? "bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-md"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-500 hover:via-blue-600 hover:to-blue-700 hover:text-white"
+                }`}
+              onClick={() => {
+                setColumnasFiltro(prev =>
+                  prev.includes(col)
+                    ? prev.filter(c => c !== col)
+                    : [...prev, col]
+                );
+              }}
+            >
+              {col.replace(/_/g, " ")}
+            </button>
+          ))}
+        </div>
 
-        ))}
+        <Button
+          onClick={() => setShowInfoModal(true)}
+          className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
+          title="Información"
+        >
+          <Info size={22} />
+        </Button>
+        {showInfoModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-lg mx-4 relative border border-gray-200 dark:border-gray-700"
+            >
+              <button
+                onClick={() => setShowInfoModal(false)}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 transition-colors"
+                title="Cerrar"
+              >
+                <CircleX size={24} />
+              </button>
+
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                <Info className="text-blue-500" />
+                Aplicar filtros de búsqueda
+              </h2>
+
+              <div className="space-y-6 text-gray-700 dark:text-gray-300">
+                <section>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">Búsqueda General</h3>
+                  <p className="text-sm">Si no hay ninguna columna seleccionada, la búsqueda se aplica a <strong>todas las columnas</strong> de la tabla.</p>
+                </section>
+
+                <section>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">Filtro por Columna</h3>
+                  <p className="text-sm">Selecciona uno o más botones para limitar la búsqueda a <strong>columnas específicas</strong>. El filtro solo buscará en los campos marcados.</p>
+                </section>
+
+                <section>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">Visualización</h3>
+                  <p className="text-sm">Independientemente de las columnas filtradas, siempre se mostrará la <strong>fila completa</strong> con todos sus datos originales.</p>
+                </section>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                <Button
+                  onClick={() => setShowInfoModal(false)}
+                  variant="ghost"
+                  gradientColors="from-blue-500 via-blue-600 to-blue-700"
+                  className="w-full font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/20"
+                >
+                  Entendido
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
 
 
