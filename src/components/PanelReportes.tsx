@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, ChevronLeft, Copy, X } from "lucide-react";
-
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Reporte {
   recepcion_id: string;
@@ -35,11 +35,11 @@ const getMethodColor = (method: string) => {
   }
 };
 
-const CopyButton = ({ text }: { text: string }) => (
+const CopyButton = ({ text, onCopy }: { text: string; onCopy: (text: string) => void }) => (
   <button
     onClick={(e) => {
       e.stopPropagation();
-      navigator.clipboard.writeText(text);
+      onCopy(text);
     }}
     className="ml-2 p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-gray-500 dark:text-gray-400 transition-colors"
     title="Copiar al portapapeles"
@@ -52,7 +52,7 @@ const JsonViewer = ({ data }: { data: string }) => {
   try {
     const jsonObj = JSON.parse(data);
     return (
-      <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs font-mono border border-gray-700 shadow-inner">
+      <pre className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-green-400 p-4 rounded-lg overflow-x-auto text-xs font-mono border border-gray-200 dark:border-gray-700 shadow-inner">
         {JSON.stringify(jsonObj, null, 2)}
       </pre>
     );
@@ -80,7 +80,14 @@ export function PanelReportes() {
   ]);
 
   const [columnasFiltro, setColumnasFiltro] = useState<string[]>([]);
-
+  const [showToast, setShowToast] = useState(false);
+  const handleCopy = (text: any) => {
+    const content = typeof text === "string" ? text : JSON.stringify(text, null, 2);
+    navigator.clipboard.writeText(content).then(() => {
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+    });
+  };
   const columnas = [
     "uuid",
     "recepcion_id",
@@ -114,7 +121,7 @@ export function PanelReportes() {
     }, 2000);
 
     return () => clearInterval(intervalo);
-  },);
+  }, []);
 
 
   // Filtrado
@@ -214,7 +221,7 @@ export function PanelReportes() {
                     ) : col === "uuid" || col === "recepcion_id" ? (
                       <div className="flex items-center font-mono text-xs text-gray-500">
                         {String(r[col]).slice(0, 8)}...
-                        <CopyButton text={r[col]} />
+                        <CopyButton text={r[col]} onCopy={handleCopy} />
                       </div>
 
                     ) : ["request_body", "response_body"].includes(col) ? (
@@ -277,67 +284,125 @@ export function PanelReportes() {
       </div>
 
       {/* Modal de Detalles de una fila*/}
-      {reporteSeleccionado && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setReporteSeleccionado(null)}
-          />
+      <AnimatePresence>
+        {reporteSeleccionado && (
+          <div className="fixed inset-0 z-50 flex justify-end">
 
-          <div className="relative w-full max-w-2xl bg-white dark:bg-gray-900 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start bg-gray-50 dark:bg-gray-800">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={`px-3 py-1 rounded-md text-sm font-bold border ${getStatusBadge(reporteSeleccionado.response_status_code)}`}>
-                    {reporteSeleccionado.response_status_code}
-                  </span>
-                  <span className={`text-xl font-bold ${getMethodColor(reporteSeleccionado.request_method)}`}>
-                    {reporteSeleccionado.request_method}
-                  </span>
-                </div>
-                <p className="font-mono text-sm text-gray-600 dark:text-gray-300 break-all">
-                  {reporteSeleccionado.request_endpoint}
-                </p>
-              </div>
-              <button onClick={() => setReporteSeleccionado(null)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
-                <X size={24} className="text-gray-500" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded border dark:border-gray-700">
-                  <span className="text-xs uppercase font-bold text-gray-500">UUID</span>
-                  <div className="flex justify-between mt-1">
-                    <code className="text-sm dark:text-white">{reporteSeleccionado.uuid}</code>
-                    <CopyButton text={reporteSeleccionado.uuid} />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setReporteSeleccionado(null)}
+            />
+
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-2xl bg-white dark:bg-gray-900 h-full shadow-2xl flex flex-col border-l border-gray-200 dark:border-gray-800"
+            >
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start bg-gray-50/50 dark:bg-gray-800/30">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className={`px-3 py-1 rounded-md text-sm font-bold border ${getStatusBadge(reporteSeleccionado.response_status_code)}`}>
+                      {reporteSeleccionado.response_status_code}
+                    </span>
+                    <span className={`text-xl font-bold ${getMethodColor(reporteSeleccionado.request_method)}`}>
+                      {reporteSeleccionado.request_method}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono text-sm text-gray-500 truncate max-w-md">
+                      {reporteSeleccionado.request_endpoint}
+                    </p>
+                    <button onClick={() => handleCopy(reporteSeleccionado.request_endpoint)} className="text-gray-400 hover:text-blue-500 transition-colors">
+                      <Copy size={14} />
+                    </button>
                   </div>
                 </div>
-                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded border dark:border-gray-700">
-                  <span className="text-xs uppercase font-bold text-gray-500">Timestamp</span>
-                  <div className="mt-1 text-sm dark:text-white">{reporteSeleccionado.timestamp}</div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-gray-900 dark:text-white">Request Body</h3>
-                  <CopyButton text={reporteSeleccionado.request_body} />
-                </div>
-                <JsonViewer data={reporteSeleccionado.request_body} />
+                <button
+                  onClick={() => setReporteSeleccionado(null)}
+                  className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
+                >
+                  <X size={20} className="text-gray-500" />
+                </button>
               </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-gray-900 dark:text-white">Response Body</h3>
-                  <CopyButton text={reporteSeleccionado.response_body} />
+              <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: "ID Recepción", val: reporteSeleccionado.recepcion_id },
+                    { label: "UUID", val: reporteSeleccionado.uuid }
+                  ].map((item, idx) => (
+                    <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                      <span className="text-[10px] uppercase font-black text-gray-400 tracking-widest">{item.label}</span>
+                      <div className="flex justify-between items-center mt-1">
+                        <code className="text-xs dark:text-gray-300 font-mono truncate mr-2">{item.val}</code>
+                        <button onClick={() => handleCopy(item.val)} className="text-gray-400 hover:text-blue-500">
+                          <Copy size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <JsonViewer data={reporteSeleccionado.response_body} />
-              </div>
 
-            </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-tight">Request Body</h3>
+                    <button
+                      onClick={() => handleCopy(reporteSeleccionado.request_body)}
+                      className="text-xs text-blue-500 font-semibold hover:underline"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                  <JsonViewer data={reporteSeleccionado.request_body} />
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-tight">Response Body</h3>
+                    <button
+                      onClick={() => handleCopy(reporteSeleccionado.response_body)}
+                      className="text-xs text-blue-500 font-semibold hover:underline"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                  <JsonViewer data={reporteSeleccionado.response_body} />
+                </motion.div>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
+      {/** Modal de copiar texto */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, x: "-50%" }}
+            animate={{ opacity: 1, y: 20, x: "-50%" }}
+            exit={{ opacity: 0, y: -50, x: "-50%" }}
+            className="fixed top-5 left-1/2 z-[200] bg-gray-900 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 border border-gray-700"
+          >
+            <div className="bg-green-500 rounded-full p-1">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-3 h-3 text-white"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider">Copiado al portapapeles</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
