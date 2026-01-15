@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import { ChevronRight, ChevronLeft, Copy, X } from "lucide-react";
 
 
 interface Reporte {
@@ -15,11 +15,58 @@ interface Reporte {
   [key: string]: any;
 }
 
+//Hacer más visual los códigos de estado
+const getStatusBadge = (code: number) => {
+  if (code >= 200 && code < 300) return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800";
+  if (code >= 300 && code < 400) return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
+  if (code >= 400 && code < 500) return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800";
+  if (code >= 500) return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800";
+  return "bg-gray-100 text-gray-800 border-gray-200";
+};
+
+//Hacer más visual los métodos
+const getMethodColor = (method: string) => {
+  switch (method.toUpperCase()) {
+    case "GET": return "text-green-600 dark:text-green-400 font-bold";
+    case "POST": return "text-yellow-600 dark:text-yellow-400 font-bold";
+    case "PUT": return "text-blue-600 dark:text-blue-400 font-bold";
+    case "DELETE": return "text-red-600 dark:text-red-400 font-bold";
+    default: return "text-gray-600 dark:text-gray-400";
+  }
+};
+
+const CopyButton = ({ text }: { text: string }) => (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(text);
+    }}
+    className="ml-2 p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-gray-500 dark:text-gray-400 transition-colors"
+    title="Copiar al portapapeles"
+  >
+    <Copy size={14} />
+  </button>
+);
+
+const JsonViewer = ({ data }: { data: string }) => {
+  try {
+    const jsonObj = JSON.parse(data);
+    return (
+      <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs font-mono border border-gray-700 shadow-inner">
+        {JSON.stringify(jsonObj, null, 2)}
+      </pre>
+    );
+  } catch (e) {
+    return <p className="text-red-500 text-sm italic">Raw data (No JSON): {data}</p>;
+  }
+};
+
 export function PanelReportes() {
   const [reportes, setReportes] = useState<Reporte[]>([]);
   const [filtro, setFiltro] = useState("");
   const [paginaActual, setPaginaActual] = useState(1);
   const [porPagina] = useState(10);
+  const [reporteSeleccionado, setReporteSeleccionado] = useState<Reporte | null>(null);
   const [columnasVisibles] = useState<string[]>([
     "uuid",
     "recepcion_id",
@@ -62,12 +109,13 @@ export function PanelReportes() {
   useEffect(() => {
     fetchReportes();
 
-    //Consultar reportes cada 2 segundos para mantenerlo actualizado en tiempo real
     const intervalo = setInterval(() => {
       fetchReportes();
-    }, 500);
+    }, 2000);
+
     return () => clearInterval(intervalo);
-  }, []);
+  },);
+
 
   // Filtrado
   const reportesFiltrados = reportes.filter(r => {
@@ -149,16 +197,34 @@ export function PanelReportes() {
             {reportesPagina.map((r, i) => (
               <tr
                 key={i}
-                className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setReporteSeleccionado(r)}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
               >
                 {columnasVisibles.map(col => (
-                  <td
-                    key={col}
-                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200"
+                  <td key={col} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200"
                   >
-                    {["request_body", "response_body"].includes(col)
-                      ? String(r[col]).slice(0, 80) + "..."
-                      : r[col]}
+                    {col === "response_status_code" ? (
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getStatusBadge(r[col])}`}>
+                        {r[col]}
+                      </span>
+
+                    ) : col === "request_method" ? (
+                      <span className={getMethodColor(r[col])}>{r[col]}</span>
+
+                    ) : col === "uuid" || col === "recepcion_id" ? (
+                      <div className="flex items-center font-mono text-xs text-gray-500">
+                        {String(r[col]).slice(0, 8)}...
+                        <CopyButton text={r[col]} />
+                      </div>
+
+                    ) : ["request_body", "response_body"].includes(col) ? (
+                      <span className="font-mono text-xs text-gray-400">
+                        {String(r[col]).slice(0, 30)}...
+                      </span>
+
+                    ) : (
+                      r[col]
+                    )}
                   </td>
                 ))}
               </tr>
@@ -209,6 +275,69 @@ export function PanelReportes() {
           <ChevronRight />
         </button>
       </div>
+
+      {/* Modal de Detalles de una fila*/}
+      {reporteSeleccionado && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setReporteSeleccionado(null)}
+          />
+
+          <div className="relative w-full max-w-2xl bg-white dark:bg-gray-900 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start bg-gray-50 dark:bg-gray-800">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className={`px-3 py-1 rounded-md text-sm font-bold border ${getStatusBadge(reporteSeleccionado.response_status_code)}`}>
+                    {reporteSeleccionado.response_status_code}
+                  </span>
+                  <span className={`text-xl font-bold ${getMethodColor(reporteSeleccionado.request_method)}`}>
+                    {reporteSeleccionado.request_method}
+                  </span>
+                </div>
+                <p className="font-mono text-sm text-gray-600 dark:text-gray-300 break-all">
+                  {reporteSeleccionado.request_endpoint}
+                </p>
+              </div>
+              <button onClick={() => setReporteSeleccionado(null)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                <X size={24} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded border dark:border-gray-700">
+                  <span className="text-xs uppercase font-bold text-gray-500">UUID</span>
+                  <div className="flex justify-between mt-1">
+                    <code className="text-sm dark:text-white">{reporteSeleccionado.uuid}</code>
+                    <CopyButton text={reporteSeleccionado.uuid} />
+                  </div>
+                </div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded border dark:border-gray-700">
+                  <span className="text-xs uppercase font-bold text-gray-500">Timestamp</span>
+                  <div className="mt-1 text-sm dark:text-white">{reporteSeleccionado.timestamp}</div>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-gray-900 dark:text-white">Request Body</h3>
+                  <CopyButton text={reporteSeleccionado.request_body} />
+                </div>
+                <JsonViewer data={reporteSeleccionado.request_body} />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-gray-900 dark:text-white">Response Body</h3>
+                  <CopyButton text={reporteSeleccionado.response_body} />
+                </div>
+                <JsonViewer data={reporteSeleccionado.response_body} />
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
