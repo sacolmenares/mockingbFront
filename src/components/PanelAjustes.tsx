@@ -55,7 +55,7 @@ interface ServerOption {
 }
 
 const getServerConfigFromAPI = async (serverName: string) => {
-  const res = await fetch(`/api/mock/config?server_name=${serverName}`);
+  const res = await fetch(`/api/mock/config?server_name=${serverName}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
   return res.json();
 };
@@ -71,7 +71,7 @@ const defaultServerList: ServerOption[] = [
 //Leer lista de servidores
 const getAvailableServers = async (currentList?: ServerOption[]): Promise<ServerOption[]> => {
   try {
-    const res = await fetch('/api/mock/config/servers');
+    const res = await fetch('/api/mock/config/servers', { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -101,7 +101,7 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
   ) => {
     // Crear snapshot antes del primer cambio si no existe
     if (!previousSnapshot) {
-      console.log("📸 CREANDO SNAPSHOT EN PRIMER CAMBIO");
+      console.log("Snapshot creado");
       setPreviousSnapshot({
         serverConfig: { ...serverConfig },
         escenarios: JSON.parse(JSON.stringify(escenarios))
@@ -234,6 +234,7 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
       const servers = await getAvailableServers(serverOptions);
 
       for (const server of servers) {
+        // Ignorar el servidor actual (case insensitive)
         if (server.label.toLowerCase() === currentServerName.toLowerCase()) {
           continue;
         }
@@ -242,10 +243,16 @@ export function PanelAjustes({ onAjustesAplicados: _onAjustesAplicados }: PanelA
           const data = await getServerConfigFromAPI(server.label);
           const serverConfig = data.server_config || data?.http?.servers?.[0];
 
-          if (serverConfig && serverConfig.listen === port) {
+          if (!serverConfig) {
+            continue;
+          }
+
+          // Comparación robusta convirtiendo a string
+          if (serverConfig.listen !== undefined && serverConfig.listen !== null && String(serverConfig.listen) === String(port)) {
             return { isDuplicate: true, serverName: server.label };
           }
         } catch (error) {
+          console.error(`Error al verificar servidor ${server.label}:`, error);
           continue;
         }
       }
